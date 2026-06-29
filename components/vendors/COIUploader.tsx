@@ -4,27 +4,41 @@ import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UploadCloud, FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ParsedFieldsForm } from "@/components/vendors/ParsedFieldsForm";
 import { cn } from "@/lib/utils";
+import type { Certificate } from "@/lib/types";
 
 /**
  * Drag-and-drop COI uploader. Posts the PDF to /api/parse-coi
  * (Phase 3), which uploads to Storage, parses via Textract (falling
  * back to Claude), stores the certificate, and recalculates vendor
- * status. On success the page is refreshed to show the new cert.
+ * status.
+ *
+ * When `review` is set (org-direct upload), the parsed fields are
+ * shown in an editable form for the user to confirm or correct before
+ * finishing. The public vendor flow (token) skips review and just
+ * confirms the upload.
  */
 export function COIUploader({
   vendorId,
   token,
+  review = false,
   onUploaded,
 }: {
   vendorId?: string;
   token?: string;
+  review?: boolean;
   onUploaded?: () => void;
 }) {
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [parsed, setParsed] = useState<{
+    cert: Certificate;
+    source: string | null;
+    confidence: number | null;
+  } | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -58,13 +72,45 @@ export function COIUploader({
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Upload failed");
-        setDone(true);
-        onUploaded?.();
-        router.refresh();
+
+        if (review && data.certificate) {
+          // Org flow: show the editable parsed fields for confirmation.
+          setParsed({
+            cert: data.certificate as Certificate,
+            source: data.parse_source ?? null,
+            confidence: data.parse_confidence ?? null,
+          });
+          router.refresh();
+        } else {
+          // Vendor flow: nothing to review.
+          setDone(true);
+          onUploaded?.();
+          router.refresh();
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Upload failed");
       }
     });
+  }
+
+  if (parsed) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Review the parsed fields and correct anything that looks off, then
+          confirm.
+        </p>
+        <ParsedFieldsForm
+          cert={parsed.cert}
+          source={parsed.source}
+          confidence={parsed.confidence}
+          onSaved={() => {
+            onUploaded?.();
+            router.refresh();
+          }}
+        />
+      </div>
+    );
   }
 
   if (done) {

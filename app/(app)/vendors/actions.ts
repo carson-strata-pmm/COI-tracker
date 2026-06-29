@@ -3,8 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { isDbConfigured, getOrg } from "@/lib/queries";
+import {
+  isDbConfigured,
+  getOrg,
+  recalculateVendorStatus,
+} from "@/lib/queries";
 import { DEV_ORG_ID, planConfig } from "@/lib/constants";
+import type { Certificate } from "@/lib/types";
 
 const vendorSchema = z.object({
   company_name: z.string().trim().min(1, "Company name is required"),
@@ -125,5 +130,82 @@ export async function deleteVendor(id: string): Promise<ActionResult> {
 
   revalidatePath("/dashboard");
   revalidatePath("/vendors");
+  return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Certificate review/edit (Phase 3)
+//
+// After a COI is parsed, the org reviews the extracted fields and
+// corrects anything Textract/Claude got wrong, then saves. Dates and
+// coverage feed the vendor status calculation, so we recalc on save.
+// ─────────────────────────────────────────────────────────────
+const certSchema = z.object({
+  insurer_name: z.string().trim().optional().or(z.literal("")),
+  policy_number: z.string().trim().optional().or(z.literal("")),
+  named_insured: z.string().trim().optional().or(z.literal("")),
+  effective_date: z.string().trim().optional().or(z.literal("")),
+  expiration_date: z.string().trim().optional().or(z.literal("")),
+  coverage_types: z.string().trim().optional().or(z.literal("")),
+});
+
+export async function updateCertificate(
+  certId: string,
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  if (!isDbConfigured()) return notConfigured();
+
+  const parsed = certSchema.safeParse({
+    insurer_name: formData.get("insurer_name"),
+    policy_number: formData.get("policy_number"),
+    named_insured: formData.get("named_insured"),
+    effective_date: formData.get("effective_date"),
+    expiration_date: formData.get("expiration_date"),
+    coverage_types: formData.get("coverage_types"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const db = createAdminClient();
+  const { data: existing } = await db
+    .from("certificates")
+    .select("vendor_id")
+    .eq("id", certId)
+    .eq("org_id", DEV_ORG_ID)
+    .single();
+  if (!existing) return { ok: false, error: "Certificate not found" };
+
+  const coverageTypes = (parsed.data.coverage_types ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const update: Partial<Certificate> = {
+    insurer_name: parsed.data.insurer_name || null,
+    policy_number: parsed.data.policy_number || null,
+    named_insured: parsed.data.named_insured || null,
+    effective_date: parsed.data.effective_date || null,
+    expiration_date: parsed.data.expiration_date || null,
+    coverage_types: coverageTypes,
+    additional_insured: formData.get("additional_insured") === "on",
+    waiver_of_subrogation: formData.get("waiver_of_subrogation") === "on",
+    parse_source: "manual",
+  };
+
+  const { error } = await db
+    .from("certificates")
+    .update(update)
+    .eq("id", certId)
+    .eq("org_id", DEV_ORG_ID);
+  if (error) return { ok: false, error: error.message };
+
+  const vendorId = (existing as { vendor_id: string }).vendor_id;
+  await recalculateVendorStatus(vendorId);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/vendors");
+  revalidatePath(`/vendors/${vendorId}`);
   return { ok: true };
 }

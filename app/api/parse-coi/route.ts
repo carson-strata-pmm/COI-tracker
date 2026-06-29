@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     certificate_id: result.certificate.id,
+    certificate: result.certificate,
     parse_source: result.parseSource,
     parse_confidence: result.confidence,
   });

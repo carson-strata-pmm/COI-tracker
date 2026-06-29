@@ -22,15 +22,19 @@ export function UploadCoiDialog({ vendorId }: { vendorId: string }) {
           <UploadCloud className="h-4 w-4" /> Upload COI
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Upload a certificate</DialogTitle>
           <DialogDescription>
-            Drop the vendor&apos;s COI PDF. We&apos;ll parse the key fields and
-            update their compliance status automatically.
+            Drop the vendor&apos;s COI PDF. We&apos;ll parse the key fields so
+            you can review them, then update their compliance status.
           </DialogDescription>
         </DialogHeader>
-        <COIUploader vendorId={vendorId} onUploaded={() => setOpen(false)} />
+        <COIUploader
+          vendorId={vendorId}
+          review
+          onUploaded={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );
