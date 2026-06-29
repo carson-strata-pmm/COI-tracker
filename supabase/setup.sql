@@ -207,10 +207,14 @@ create policy "public can read an upload request by token"
   );
 
 -- ── reminder_log ─────────────────────────────────────────────
+-- reminder_log has no org_id column (per the schema); scope it
+-- through the vendor it belongs to.
 drop policy if exists "org members read their reminder log" on reminder_log;
 create policy "org members read their reminder log"
   on reminder_log for select
-  using (org_id = auth_org_id());
+  using (
+    vendor_id in (select id from vendors where org_id = auth_org_id())
+  );
 
 -- ============ 0003_storage.sql ============
 -- ─────────────────────────────────────────────────────────────
