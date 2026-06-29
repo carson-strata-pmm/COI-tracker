@@ -4,7 +4,7 @@ import { isDbConfigured } from "@/lib/queries";
 import { generateUploadToken } from "@/lib/upload-token";
 import { sendEmail, hasResend } from "@/lib/resend";
 import { vendorUploadRequestEmail } from "@/lib/email-templates";
-import { DEV_ORG_ID } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/auth";
 import type { Organization, Vendor } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -31,12 +31,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "vendor_id required" }, { status: 400 });
   }
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) {
+    return NextResponse.json(
+      { error: "No active organization" },
+      { status: 401 }
+    );
+  }
   const db = createAdminClient();
   const { data: vendor } = await db
     .from("vendors")
     .select("*")
     .eq("id", vendorId)
-    .eq("org_id", DEV_ORG_ID)
+    .eq("org_id", orgId)
     .single();
   if (!vendor) {
     return NextResponse.json({ error: "Vendor not found" }, { status: 404 });

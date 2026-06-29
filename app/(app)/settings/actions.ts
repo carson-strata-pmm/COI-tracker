@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { isDbConfigured } from "@/lib/queries";
-import { DEV_ORG_ID } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/auth";
 
 const orgSchema = z.object({
   name: z.string().trim().min(1, "Organization name is required"),
@@ -33,6 +33,10 @@ export async function updateOrg(
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) {
+    return { ok: false, error: "No active organization." };
+  }
   const db = createAdminClient();
   const { error } = await db
     .from("organizations")
@@ -40,7 +44,7 @@ export async function updateOrg(
       name: parsed.data.name,
       industry_type: parsed.data.industry_type || null,
     })
-    .eq("id", DEV_ORG_ID);
+    .eq("id", orgId);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/settings");

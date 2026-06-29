@@ -6,7 +6,8 @@ import { resolveUploadRequest } from "@/lib/upload-request";
 import { triggerAiReview } from "@/lib/ai-review";
 import { sendEmail } from "@/lib/resend";
 import { coiReceivedEmail } from "@/lib/email-templates";
-import { planConfig, DEV_ORG_ID } from "@/lib/constants";
+import { planConfig } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/auth";
 import type { Organization, Vendor } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -57,11 +58,18 @@ export async function POST(req: NextRequest) {
     requestId = resolved.request.id;
   } else if (typeof vendorId === "string" && vendorId) {
     // ── org-direct flow ──
+    const orgId = await getActiveOrgId();
+    if (!orgId) {
+      return NextResponse.json(
+        { error: "No active organization" },
+        { status: 401 }
+      );
+    }
     const { data: v } = await db
       .from("vendors")
       .select("*")
       .eq("id", vendorId)
-      .eq("org_id", DEV_ORG_ID)
+      .eq("org_id", orgId)
       .single();
     if (!v) {
       return NextResponse.json({ error: "Vendor not found" }, { status: 404 });

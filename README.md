@@ -84,9 +84,30 @@ This project is built in phases (see the project brief). Current state:
 - [ ] **Phase 4 — Vendor Upload Request Flow** — scaffolded.
 - [ ] **Phase 5 — Automated Reminders** — Edge Function scaffolded.
 - [ ] **Phase 6 — AI Compliance Review** — Edge Function + lib scaffolded.
-- [ ] **Phase 7 — Polish**
-- [ ] **Phase 8 — Auth (deferred)**
-- [ ] **Phase 9 — Payments (deferred)**
+- [x] **Phase 7 — Polish (in progress):** mobile nav, error/loading states,
+      settings page.
+- [x] **Phase 8 — Auth:** email/password + magic-link sign-in, email
+      confirmation/magic-link callback, onboarding (org creation on first
+      login), sign-out, and session middleware. All data access is scoped to
+      the resolved active org.
+- [x] **Phase 9 — Payments:** Stripe Checkout upgrade flow, Customer Portal,
+      webhook → plan sync, and vendor-limit enforcement by plan.
+
+### Auth modes
+
+Auth is **additive** so the app runs with zero login in development:
+
+- **Dev/demo (default, `NEXT_PUBLIC_REQUIRE_AUTH=false`):** no login required;
+  the active org is the seeded dev org.
+- **Enforced (`NEXT_PUBLIC_REQUIRE_AUTH=true`):** unauthenticated users are
+  redirected to `/auth/login`; the active org is the signed-in user's org
+  (created during onboarding). Flipping this flag is the only change needed —
+  the data layer already scopes every query to the resolved org id.
+
+> RLS policies are defined for all tables (see `supabase/migrations`). Server
+> data access uses the service-role client scoped explicitly to the active org
+> id; the unauthenticated vendor-upload path is gated by signed single-use
+> tokens.
 
 ## Project Structure
 

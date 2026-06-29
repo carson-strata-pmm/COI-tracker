@@ -3,14 +3,15 @@ import { VendorTable } from "@/components/dashboard/VendorTable";
 import { AddVendorDialog } from "@/components/vendors/AddVendorDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { DbNotice } from "@/components/DbNotice";
-import { getOrg, getVendorsWithCerts, isDbConfigured } from "@/lib/queries";
+import { getVendorsWithCerts, isDbConfigured } from "@/lib/queries";
+import { requireActiveOrg } from "@/lib/guards";
 import { planConfig } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
 export default async function VendorsPage() {
   const [org, vendors] = await Promise.all([
-    getOrg(),
+    requireActiveOrg(),
     getVendorsWithCerts(),
   ]);
   const plan = planConfig(org.plan);

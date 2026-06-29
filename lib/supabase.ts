@@ -1,16 +1,12 @@
-import { createBrowserClient, createServerClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-/**
- * Browser (client component) Supabase client. Uses the anon key and
- * is subject to RLS as the logged-in user.
- */
-export function createClient() {
-  return createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
+// Note: the browser client lives in lib/supabase-browser.ts so that
+// client components don't pull in next/headers. This module is
+// server-only.
 
 /**
  * Server (RSC / route handler / server action) Supabase client.

@@ -16,12 +16,12 @@ import { UploadCoiDialog } from "@/components/vendors/UploadCoiDialog";
 import { RequestCoiButton } from "@/components/vendors/RequestCoiButton";
 import { DbNotice } from "@/components/DbNotice";
 import {
-  getOrg,
   getVendor,
   getVendorCertificates,
   getAIReviewForCert,
   isDbConfigured,
 } from "@/lib/queries";
+import { requireActiveOrg } from "@/lib/guards";
 import { latestCertificate } from "@/lib/status";
 import { planConfig } from "@/lib/constants";
 import { formatDate, formatMoney, humanizeKey } from "@/lib/format";
@@ -33,7 +33,7 @@ export default async function VendorDetailPage({
 }) {
   const [vendor, org, certs] = await Promise.all([
     getVendor(params.id),
-    getOrg(),
+    requireActiveOrg(),
     getVendorCertificates(params.id),
   ]);
   if (!vendor) notFound();

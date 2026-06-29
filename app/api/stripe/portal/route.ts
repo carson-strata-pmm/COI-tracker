@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe, hasStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { isDbConfigured } from "@/lib/queries";
-import { DEV_ORG_ID } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/auth";
 import type { Organization } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -16,11 +16,18 @@ export async function POST() {
     );
   }
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) {
+    return NextResponse.json(
+      { error: "No active organization" },
+      { status: 401 }
+    );
+  }
   const db = createAdminClient();
   const { data: org } = await db
     .from("organizations")
     .select("*")
-    .eq("id", DEV_ORG_ID)
+    .eq("id", orgId)
     .single();
   const customerId = (org as Organization)?.stripe_customer_id;
   if (!customerId) {

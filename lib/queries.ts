@@ -1,15 +1,17 @@
 // ─────────────────────────────────────────────────────────────
 // Server-side data access.
 //
-// During development (auth deferred to Phase 8) all reads/writes
-// are scoped to the hardcoded DEV_ORG_ID and go through the
-// service-role admin client. If Supabase is not configured, reads
-// fall back to in-memory fixtures so the UI still renders.
+// All reads/writes are scoped to the active org (see lib/auth.ts):
+// the signed-in user's org, or the hardcoded DEV_ORG_ID in dev/demo
+// mode. Data access goes through the service-role admin client,
+// scoped explicitly by the resolved org id. If Supabase is not
+// configured, reads fall back to in-memory fixtures so the UI still
+// renders.
 // ─────────────────────────────────────────────────────────────
 import "server-only";
 
 import { createAdminClient, hasAdminCredentials } from "@/lib/supabase-admin";
-import { DEV_ORG_ID } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/auth";
 import { computeVendorStatus, latestCertificate } from "@/lib/status";
 import { FIXTURE_ORG, FIXTURE_VENDORS } from "@/lib/fixtures";
 import type {
@@ -24,17 +26,20 @@ export function isDbConfigured(): boolean {
   return hasAdminCredentials();
 }
 
-/** The active org. In dev this is always the seeded dev org. */
-export async function getOrg(): Promise<Organization> {
+/** The active org. Falls back to the fixture org in demo mode. */
+export async function getOrg(): Promise<Organization | null> {
   if (!isDbConfigured()) return FIXTURE_ORG as Organization;
+
+  const orgId = await getActiveOrgId();
+  if (!orgId) return null;
 
   const db = createAdminClient();
   const { data, error } = await db
     .from("organizations")
     .select("*")
-    .eq("id", DEV_ORG_ID)
+    .eq("id", orgId)
     .single();
-  if (error || !data) return FIXTURE_ORG as Organization;
+  if (error || !data) return null;
   return data as Organization;
 }
 
@@ -45,23 +50,26 @@ export async function getOrg(): Promise<Organization> {
 export async function getVendorsWithCerts(): Promise<VendorWithCert[]> {
   if (!isDbConfigured()) return FIXTURE_VENDORS;
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) return [];
+
   const db = createAdminClient();
   const { data: vendors, error } = await db
     .from("vendors")
     .select("*")
-    .eq("org_id", DEV_ORG_ID)
+    .eq("org_id", orgId)
     .order("created_at", { ascending: false });
   if (error || !vendors) return [];
 
   const { data: certs } = await db
     .from("certificates")
     .select("*")
-    .eq("org_id", DEV_ORG_ID);
+    .eq("org_id", orgId);
 
   const { data: reviews } = await db
     .from("ai_reviews")
     .select("*")
-    .eq("org_id", DEV_ORG_ID);
+    .eq("org_id", orgId);
 
   const certsByVendor = new Map<string, Certificate[]>();
   for (const c of (certs ?? []) as Certificate[]) {
@@ -89,12 +97,15 @@ export async function getVendor(id: string): Promise<Vendor | null> {
   if (!isDbConfigured()) {
     return FIXTURE_VENDORS.find((v) => v.id === id) ?? null;
   }
+  const orgId = await getActiveOrgId();
+  if (!orgId) return null;
+
   const db = createAdminClient();
   const { data } = await db
     .from("vendors")
     .select("*")
     .eq("id", id)
-    .eq("org_id", DEV_ORG_ID)
+    .eq("org_id", orgId)
     .single();
   return (data as Vendor) ?? null;
 }
@@ -106,12 +117,15 @@ export async function getVendorCertificates(
     const v = FIXTURE_VENDORS.find((x) => x.id === vendorId);
     return v?.latest_certificate ? [v.latest_certificate] : [];
   }
+  const orgId = await getActiveOrgId();
+  if (!orgId) return [];
+
   const db = createAdminClient();
   const { data } = await db
     .from("certificates")
     .select("*")
     .eq("vendor_id", vendorId)
-    .eq("org_id", DEV_ORG_ID)
+    .eq("org_id", orgId)
     .order("uploaded_at", { ascending: false });
   return (data as Certificate[]) ?? [];
 }

@@ -3,12 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase-admin";
-import {
-  isDbConfigured,
-  getOrg,
-  recalculateVendorStatus,
-} from "@/lib/queries";
-import { DEV_ORG_ID, planConfig } from "@/lib/constants";
+import { isDbConfigured, recalculateVendorStatus } from "@/lib/queries";
+import { getActiveOrgId, getActiveOrg } from "@/lib/auth";
+import { planConfig } from "@/lib/constants";
 import type { Certificate } from "@/lib/types";
 
 const vendorSchema = z.object({
@@ -33,6 +30,11 @@ function notConfigured(): ActionResult {
   };
 }
 
+const NO_ORG: ActionResult = {
+  ok: false,
+  error: "No active organization. Please sign in and create your org.",
+};
+
 export async function createVendor(
   _prev: ActionResult | null,
   formData: FormData
@@ -49,16 +51,17 @@ export async function createVendor(
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
+  const org = await getActiveOrg();
+  if (!org) return NO_ORG;
   const db = createAdminClient();
 
   // Enforce the plan's vendor limit on insert.
-  const org = await getOrg();
   const plan = planConfig(org.plan);
   if (plan.vendorLimit !== null) {
     const { count } = await db
       .from("vendors")
       .select("id", { count: "exact", head: true })
-      .eq("org_id", DEV_ORG_ID);
+      .eq("org_id", org.id);
     if ((count ?? 0) >= plan.vendorLimit) {
       return {
         ok: false,
@@ -68,7 +71,7 @@ export async function createVendor(
   }
 
   const { error } = await db.from("vendors").insert({
-    org_id: DEV_ORG_ID,
+    org_id: org.id,
     company_name: parsed.data.company_name,
     contact_name: parsed.data.contact_name || null,
     contact_email: parsed.data.contact_email || null,
@@ -99,6 +102,8 @@ export async function updateVendor(
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) return NO_ORG;
   const db = createAdminClient();
   const { error } = await db
     .from("vendors")
@@ -109,7 +114,7 @@ export async function updateVendor(
       vendor_type: parsed.data.vendor_type || null,
     })
     .eq("id", id)
-    .eq("org_id", DEV_ORG_ID);
+    .eq("org_id", orgId);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/dashboard");
@@ -120,12 +125,14 @@ export async function updateVendor(
 
 export async function deleteVendor(id: string): Promise<ActionResult> {
   if (!isDbConfigured()) return notConfigured();
+  const orgId = await getActiveOrgId();
+  if (!orgId) return NO_ORG;
   const db = createAdminClient();
   const { error } = await db
     .from("vendors")
     .delete()
     .eq("id", id)
-    .eq("org_id", DEV_ORG_ID);
+    .eq("org_id", orgId);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/dashboard");
@@ -168,12 +175,14 @@ export async function updateCertificate(
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) return NO_ORG;
   const db = createAdminClient();
   const { data: existing } = await db
     .from("certificates")
     .select("vendor_id")
     .eq("id", certId)
-    .eq("org_id", DEV_ORG_ID)
+    .eq("org_id", orgId)
     .single();
   if (!existing) return { ok: false, error: "Certificate not found" };
 
@@ -198,7 +207,7 @@ export async function updateCertificate(
     .from("certificates")
     .update(update)
     .eq("id", certId)
-    .eq("org_id", DEV_ORG_ID);
+    .eq("org_id", orgId);
   if (error) return { ok: false, error: error.message };
 
   const vendorId = (existing as { vendor_id: string }).vendor_id;

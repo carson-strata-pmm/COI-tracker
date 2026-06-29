@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripe, hasStripe, priceIdForPlan } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { isDbConfigured } from "@/lib/queries";
-import { DEV_ORG_ID, type Plan } from "@/lib/constants";
+import { type Plan } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/auth";
 import type { Organization } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -35,13 +36,21 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const stripe = getStripe();
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) {
+    return NextResponse.json(
+      { error: "No active organization" },
+      { status: 401 }
+    );
+  }
+
   let customerId: string | undefined;
   if (isDbConfigured()) {
     const db = createAdminClient();
     const { data: org } = await db
       .from("organizations")
       .select("*")
-      .eq("id", DEV_ORG_ID)
+      .eq("id", orgId)
       .single();
     customerId = (org as Organization)?.stripe_customer_id ?? undefined;
   }
@@ -50,7 +59,7 @@ export async function POST(req: NextRequest) {
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     customer: customerId,
-    client_reference_id: DEV_ORG_ID,
+    client_reference_id: orgId,
     success_url: `${appUrl}/settings?upgraded=1`,
     cancel_url: `${appUrl}/settings`,
   });

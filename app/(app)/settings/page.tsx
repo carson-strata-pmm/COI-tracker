@@ -5,17 +5,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { OrgSettingsForm } from "@/components/settings/OrgSettingsForm";
+import { BillingControls } from "@/components/settings/BillingControls";
 import { DbNotice } from "@/components/DbNotice";
-import { getOrg, isDbConfigured } from "@/lib/queries";
-import { PLANS, planConfig } from "@/lib/constants";
+import { isDbConfigured } from "@/lib/queries";
+import { requireActiveOrg } from "@/lib/guards";
+import { planConfig } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const org = await getOrg();
+  const org = await requireActiveOrg();
   const plan = planConfig(org.plan);
 
   return (
@@ -49,40 +49,8 @@ export default async function SettingsPage() {
             You&apos;re on the {plan.name} plan.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {Object.values(PLANS).map((p) => (
-              <div
-                key={p.id}
-                className={`rounded-lg border p-4 ${
-                  p.id === org.plan ? "border-primary ring-1 ring-primary" : ""
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{p.name}</span>
-                  {p.id === org.plan && <Badge>Current</Badge>}
-                </div>
-                <div className="mt-1 text-2xl font-semibold">
-                  ${p.priceMonthly}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    /mo
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {p.vendorLimit === null
-                    ? "Unlimited vendors"
-                    : `Up to ${p.vendorLimit} vendors`}
-                  {p.aiReview && " · AI compliance review"}
-                </p>
-              </div>
-            ))}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Self-serve billing via Stripe is added in Phase 9.
-          </p>
-          <Button variant="outline" disabled>
-            Manage billing (coming soon)
-          </Button>
+        <CardContent>
+          <BillingControls currentPlan={org.plan} />
         </CardContent>
       </Card>
     </div>
