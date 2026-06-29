@@ -15,6 +15,7 @@ values ('coi-documents', 'coi-documents', false)
 on conflict (id) do nothing;
 
 -- Authenticated org members may read objects under their own org prefix.
+drop policy if exists "org members read their coi documents" on storage.objects;
 create policy "org members read their coi documents"
   on storage.objects for select
   to authenticated
@@ -26,6 +27,7 @@ create policy "org members read their coi documents"
   );
 
 -- Authenticated org members may upload objects under their own org prefix.
+drop policy if exists "org members upload their coi documents" on storage.objects;
 create policy "org members upload their coi documents"
   on storage.objects for insert
   to authenticated

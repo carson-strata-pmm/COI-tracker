@@ -52,8 +52,11 @@ supabase db push          # applies supabase/migrations/*
 psql "$DATABASE_URL" -f supabase/seed.sql   # seeds the hardcoded dev org
 ```
 
-Or paste the contents of `supabase/migrations/*.sql` and `supabase/seed.sql`
-into the Supabase SQL editor in order.
+**Or — easiest:** open the Supabase SQL editor and paste the entire contents of
+[`supabase/setup.sql`](supabase/setup.sql). It bundles all migrations + seed in
+order and is safe to re-run (idempotent). After running it, create the private
+storage bucket if it wasn't created automatically (the script attempts it):
+Storage → New bucket → name `coi-documents`, **not** public.
 
 The seed creates a hardcoded **dev org** (`00000000-0000-0000-0000-000000000001`).
 Auth is deferred to Phase 8 — until then the app reads this org id from
