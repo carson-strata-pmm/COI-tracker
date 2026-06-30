@@ -270,6 +270,11 @@ update organizations set plan = 'solo'   where plan = 'starter';
 update organizations set plan = 'crew'   where plan = 'growth';
 update organizations set plan = 'outfit' where plan = 'scale';
 
+-- ============ 0007_free_tier.sql ============
+-- No schema change needed — plan column is text.
+-- New signups default to 'free' via application code (lib/auth.ts).
+-- Existing orgs are unaffected.
+
 -- ============ seed.sql ============
 -- ─────────────────────────────────────────────────────────────
 -- CertTrack — development seed

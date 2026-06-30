@@ -26,6 +26,86 @@ function SubmitButton() {
   );
 }
 
+function FirstUpgradePrompt({
+  upgradePlans,
+  onClose,
+}: {
+  upgradePlans: PlanConfig[];
+  onClose: () => void;
+}) {
+  const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  async function checkout(planId: string) {
+    setCheckingOut(planId);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Checkout unavailable");
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      setCheckoutError(e instanceof Error ? e.message : "Checkout unavailable");
+      setCheckingOut(null);
+    }
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm">
+        <p className="font-semibold text-green-800">Your first vendor is tracked!</p>
+        <p className="mt-1 text-green-700">
+          Ready to add more? Pick the plan that fits your business — no limits after that.
+        </p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {upgradePlans.map((p) => (
+          <div key={p.id} className="flex flex-col rounded-lg border p-3">
+            <div className="flex items-baseline justify-between gap-1">
+              <span className="font-semibold">{p.name}</span>
+              <span className="text-sm font-medium">
+                ${p.priceYearly}<span className="text-muted-foreground">/yr</span>
+              </span>
+            </div>
+            <p className="mt-1 flex-1 text-xs text-muted-foreground">
+              {p.vendorLimit === null ? "No vendor limit" : `Up to ${p.vendorLimit} vendors`}
+            </p>
+            <Button
+              size="sm"
+              className="mt-2"
+              onClick={() => checkout(p.id)}
+              disabled={checkingOut !== null}
+            >
+              {checkingOut === p.id ? (
+                "Redirecting…"
+              ) : (
+                <>
+                  Choose {p.name} <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </>
+              )}
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      {checkoutError && (
+        <p className="text-sm text-destructive">{checkoutError}</p>
+      )}
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={checkingOut !== null}>
+          Maybe later
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
 function UpgradePrompt({
   currentError,
   upgradePlan,
@@ -173,6 +253,9 @@ export function AddVendorDialog({
     }
   }, [open]);
 
+  const isFirstUpgrade = state && !state.ok && state.isFirstUpgrade && state.upgradePlans;
+  const isPaidUpgrade = state && !state.ok && !state.isFirstUpgrade && state.upgradePlan;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -182,11 +265,15 @@ export function AddVendorDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a vendor</DialogTitle>
-          <DialogDescription>
-            Add a vendor or subcontractor to track their certificate of
-            insurance. We&apos;ll automatically send them an upload link.
-          </DialogDescription>
+          <DialogTitle>
+            {isFirstUpgrade ? "Nice — your first vendor is tracked!" : "Add a vendor"}
+          </DialogTitle>
+          {!isFirstUpgrade && (
+            <DialogDescription>
+              Add a vendor or subcontractor to track their certificate of
+              insurance. We&apos;ll automatically send them an upload link.
+            </DialogDescription>
+          )}
         </DialogHeader>
 
         {state?.ok && state.uploadUrl ? (
@@ -194,16 +281,21 @@ export function AddVendorDialog({
             state={state as Extract<ActionResult, { ok: true }> & { uploadUrl: string }}
             onClose={() => setOpen(false)}
           />
-        ) : state && !state.ok && state.upgradePlan ? (
+        ) : isFirstUpgrade ? (
+          <FirstUpgradePrompt
+            upgradePlans={(state as Extract<ActionResult, { ok: false }> & { upgradePlans: import("@/lib/constants").PlanConfig[] }).upgradePlans}
+            onClose={() => setOpen(false)}
+          />
+        ) : isPaidUpgrade ? (
           <UpgradePrompt
-            currentError={state.error}
-            upgradePlan={state.upgradePlan}
+            currentError={(state as Extract<ActionResult, { ok: false }>).error}
+            upgradePlan={(state as Extract<ActionResult, { ok: false }> & { upgradePlan: import("@/lib/constants").PlanConfig }).upgradePlan!}
             onClose={() => setOpen(false)}
           />
         ) : (
           <form action={formAction} className="grid gap-4">
             <VendorFormFields />
-            {state && !state.ok && (
+            {state && !state.ok && !isFirstUpgrade && !isPaidUpgrade && (
               <p className="text-sm text-destructive">{state.error}</p>
             )}
             <DialogFooter>

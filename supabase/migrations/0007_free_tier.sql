@@ -1,0 +1,3 @@
+-- No schema change needed — organizations.plan is already a free-form text column.
+-- New signups default to 'free' via application code (lib/auth.ts).
+-- Existing orgs are unaffected; they retain their current paid plan.

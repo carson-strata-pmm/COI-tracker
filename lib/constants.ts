@@ -1,17 +1,24 @@
 // ─────────────────────────────────────────────────────────────
-// Plans — annual billing, 4 tiers, AI review on all plans
+// Plans — annual billing, 5 tiers, AI review on all plans
 // ─────────────────────────────────────────────────────────────
-export type Plan = "solo" | "crew" | "outfit" | "unlimited";
+export type Plan = "free" | "solo" | "crew" | "outfit" | "unlimited";
 
 export interface PlanConfig {
   id: Plan;
   name: string;
   priceYearly: number;
   vendorLimit: number | null; // null = unlimited
-  priceIdEnv: string; // env var holding the Stripe price id
+  priceIdEnv: string; // env var holding the Stripe price id (empty for free)
 }
 
 export const PLANS: Record<Plan, PlanConfig> = {
+  free: {
+    id: "free",
+    name: "Free",
+    priceYearly: 0,
+    vendorLimit: 1,
+    priceIdEnv: "",
+  },
   solo: {
     id: "solo",
     name: "Solo",
@@ -42,10 +49,17 @@ export const PLANS: Record<Plan, PlanConfig> = {
   },
 };
 
-export const PLAN_ORDER: Plan[] = ["solo", "crew", "outfit", "unlimited"];
+export const PLAN_ORDER: Plan[] = ["free", "solo", "crew", "outfit", "unlimited"];
+
+export const PAID_PLANS: PlanConfig[] = [
+  PLANS.solo,
+  PLANS.crew,
+  PLANS.outfit,
+  PLANS.unlimited,
+];
 
 export function planConfig(plan: string | null | undefined): PlanConfig {
-  return PLANS[(plan as Plan) ?? "solo"] ?? PLANS.solo;
+  return PLANS[(plan as Plan) ?? "free"] ?? PLANS.free;
 }
 
 /** The next tier up from the given plan, or null if already at the top. */
