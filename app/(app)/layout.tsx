@@ -8,7 +8,8 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [org, user] = await Promise.all([requireActiveOrg(), getAuthUser()]);
+  const org = await requireActiveOrg();
+  const user = await getAuthUser();
   return (
     <div className="flex min-h-screen">
       <Sidebar />

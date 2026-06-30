@@ -6,6 +6,10 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { isDbConfigured, recalculateVendorStatus } from "@/lib/queries";
 import { getActiveOrgId, getActiveOrg } from "@/lib/auth";
 import { planConfig } from "@/lib/constants";
+import { generateUploadToken } from "@/lib/upload-token";
+import { sendEmail, hasResend } from "@/lib/resend";
+import { sendSms, hasTwilio } from "@/lib/twilio";
+import { vendorUploadRequestEmail } from "@/lib/email-templates";
 import type { Certificate } from "@/lib/types";
 
 const vendorSchema = z.object({
@@ -17,10 +21,13 @@ const vendorSchema = z.object({
     .email("Enter a valid email")
     .optional()
     .or(z.literal("")),
+  contact_phone: z.string().trim().optional().or(z.literal("")),
   vendor_type: z.string().trim().optional().or(z.literal("")),
 });
 
-export type ActionResult = { ok: true } | { ok: false; error: string };
+export type ActionResult =
+  | { ok: true; uploadUrl?: string; emailed?: boolean; texted?: boolean }
+  | { ok: false; error: string };
 
 function notConfigured(): ActionResult {
   return {
@@ -45,6 +52,7 @@ export async function createVendor(
     company_name: formData.get("company_name"),
     contact_name: formData.get("contact_name"),
     contact_email: formData.get("contact_email"),
+    contact_phone: formData.get("contact_phone"),
     vendor_type: formData.get("vendor_type"),
   });
   if (!parsed.success) {
@@ -70,19 +78,59 @@ export async function createVendor(
     }
   }
 
-  const { error } = await db.from("vendors").insert({
+  const { data: vendor, error } = await db
+    .from("vendors")
+    .insert({
+      org_id: org.id,
+      company_name: parsed.data.company_name,
+      contact_name: parsed.data.contact_name || null,
+      contact_email: parsed.data.contact_email || null,
+      contact_phone: parsed.data.contact_phone || null,
+      vendor_type: parsed.data.vendor_type || null,
+      status: "missing",
+    })
+    .select("id")
+    .single();
+  if (error || !vendor) return { ok: false, error: error?.message ?? "Could not create vendor" };
+
+  // Create an upload request and immediately notify the vendor.
+  const token = generateUploadToken();
+  await db.from("upload_requests").insert({
+    vendor_id: vendor.id,
     org_id: org.id,
-    company_name: parsed.data.company_name,
-    contact_name: parsed.data.contact_name || null,
-    contact_email: parsed.data.contact_email || null,
-    vendor_type: parsed.data.vendor_type || null,
-    status: "missing",
+    token,
   });
-  if (error) return { ok: false, error: error.message };
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const uploadUrl = `${appUrl}/upload/${token}`;
+  const contactEmail = parsed.data.contact_email;
+  const contactPhone = parsed.data.contact_phone;
+  const vendorName = parsed.data.contact_name || parsed.data.company_name;
+
+  let emailed = false;
+  let texted = false;
+
+  if (contactEmail) {
+    const emailContent = vendorUploadRequestEmail({
+      orgName: org.name,
+      vendorName,
+      uploadUrl,
+    });
+    await sendEmail({ to: contactEmail, ...emailContent });
+    emailed = hasResend();
+  }
+
+  if (contactPhone) {
+    await sendSms({
+      to: contactPhone,
+      body: `${org.name} needs your Certificate of Insurance. Upload it here: ${uploadUrl}`,
+    });
+    texted = hasTwilio();
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/vendors");
-  return { ok: true };
+  return { ok: true, uploadUrl, emailed, texted };
 }
 
 export async function updateVendor(

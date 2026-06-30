@@ -10,10 +10,8 @@ import { planConfig } from "@/lib/constants";
 export const dynamic = "force-dynamic";
 
 export default async function VendorsPage() {
-  const [org, vendors] = await Promise.all([
-    requireActiveOrg(),
-    getVendorsWithCerts(),
-  ]);
+  const org = await requireActiveOrg();
+  const vendors = await getVendorsWithCerts();
   const plan = planConfig(org.plan);
 
   return (

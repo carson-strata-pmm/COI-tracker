@@ -35,6 +35,16 @@ export function VendorFormFields({ vendor }: { vendor?: Vendor }) {
         />
       </div>
       <div className="grid gap-2">
+        <Label htmlFor="contact_phone">Contact phone</Label>
+        <Input
+          id="contact_phone"
+          name="contact_phone"
+          type="tel"
+          defaultValue={vendor?.contact_phone ?? ""}
+          placeholder="+1 555 000 0000"
+        />
+      </div>
+      <div className="grid gap-2">
         <Label htmlFor="vendor_type">Vendor type</Label>
         <Input
           id="vendor_type"

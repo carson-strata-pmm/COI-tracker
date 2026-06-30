@@ -109,6 +109,9 @@ create index if not exists idx_ai_reviews_cert_id on ai_reviews (cert_id);
 create index if not exists idx_upload_requests_token on upload_requests (token);
 create index if not exists idx_reminder_log_cert_id on reminder_log (cert_id);
 
+-- ============ 0004_vendor_phone.sql ============
+alter table vendors add column if not exists contact_phone text;
+
 -- ============ 0002_rls_policies.sql ============
 -- ─────────────────────────────────────────────────────────────
 -- CertTrack — Row Level Security

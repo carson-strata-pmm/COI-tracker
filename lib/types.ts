@@ -24,6 +24,7 @@ export interface Vendor {
   company_name: string;
   contact_name: string | null;
   contact_email: string | null;
+  contact_phone: string | null;
   vendor_type: string | null;
   status: VendorStatus;
   created_at: string;
