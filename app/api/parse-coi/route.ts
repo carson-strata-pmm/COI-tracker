@@ -6,7 +6,6 @@ import { resolveUploadRequest } from "@/lib/upload-request";
 import { triggerAiReview } from "@/lib/ai-review";
 import { sendEmail } from "@/lib/resend";
 import { coiReceivedEmail } from "@/lib/email-templates";
-import { planConfig } from "@/lib/constants";
 import { getActiveOrgId } from "@/lib/auth";
 import type { Organization, Vendor } from "@/lib/types";
 
@@ -115,10 +114,9 @@ export async function POST(req: NextRequest) {
       .eq("id", requestId);
   }
 
-  // AI review (Pro+ only) — runs inline here; in production this is a
-  // Supabase Edge Function triggered on cert insert.
+  // AI review runs on every cert upload for all plans.
   let issuesSummary: string | null = null;
-  if (planConfig(org.plan).aiReview) {
+  {
     const issues = await triggerAiReview({
       cert: result.certificate,
       vendor,

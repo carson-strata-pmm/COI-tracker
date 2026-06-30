@@ -90,7 +90,7 @@ export async function createOrgForCurrentUser(args: {
 
   const { data: org, error: orgError } = await db
     .from("organizations")
-    .insert({ name: args.name, industry_type: args.industryType, plan: "free" })
+    .insert({ name: args.name, industry_type: args.industryType, plan: "starter" })
     .select("id")
     .single();
   if (orgError || !org) {

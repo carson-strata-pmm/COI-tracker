@@ -1,16 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PLANS, type Plan } from "@/lib/constants";
+import { PLANS, PLAN_ORDER, type Plan } from "@/lib/constants";
 
-/**
- * Plan grid with self-serve upgrade (Stripe Checkout) and a manage-
- * billing button (Stripe Customer Portal). Falls back to a disabled
- * state with a message if Stripe isn't configured (the endpoints
- * return 503).
- */
 export function BillingControls({ currentPlan }: { currentPlan: Plan }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -47,36 +42,45 @@ export function BillingControls({ currentPlan }: { currentPlan: Plan }) {
     });
   }
 
+  const currentIdx = PLAN_ORDER.indexOf(currentPlan);
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        {Object.values(PLANS).map((p) => {
-          const isCurrent = p.id === currentPlan;
-          const canUpgrade = !isCurrent && p.id !== "free";
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {PLAN_ORDER.map((id) => {
+          const p = PLANS[id];
+          const isCurrent = id === currentPlan;
+          const isUpgrade = PLAN_ORDER.indexOf(id) > currentIdx;
+
           return (
             <div
-              key={p.id}
+              key={id}
               className={`flex flex-col rounded-lg border p-4 ${
                 isCurrent ? "border-primary ring-1 ring-primary" : ""
               }`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-medium">{p.name}</span>
                 {isCurrent && <Badge>Current</Badge>}
               </div>
               <div className="mt-1 text-2xl font-semibold">
-                ${p.priceMonthly}
+                ${p.priceYearly}
                 <span className="text-sm font-normal text-muted-foreground">
-                  /mo
+                  /yr
                 </span>
               </div>
               <p className="mt-2 flex-1 text-xs text-muted-foreground">
                 {p.vendorLimit === null
                   ? "Unlimited vendors"
                   : `Up to ${p.vendorLimit} vendors`}
-                {p.aiReview && " · AI compliance review"}
               </p>
-              {canUpgrade && (
+              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3 w-3 text-green-600 shrink-0" />
+                  AI compliance review
+                </li>
+              </ul>
+              {isUpgrade && (
                 <Button
                   size="sm"
                   className="mt-3"

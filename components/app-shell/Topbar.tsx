@@ -19,7 +19,7 @@ export function Topbar({
         <span className="text-sm font-medium">{org.name}</span>
       </div>
       <div className="flex items-center gap-3">
-        <Badge variant={org.plan === "pro_plus" ? "default" : "secondary"}>
+        <Badge variant={org.plan === "starter" ? "secondary" : "default"}>
           {plan.name} plan
         </Badge>
         <UserMenu email={userEmail} />

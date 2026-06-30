@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { isDbConfigured } from "@/lib/queries";
 import { triggerAiReview } from "@/lib/ai-review";
-import { planConfig } from "@/lib/constants";
 import type { Certificate, Organization, Vendor } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -42,11 +41,8 @@ export async function POST(req: NextRequest) {
     .select("*")
     .eq("id", (cert as Certificate).org_id)
     .single();
-  if (!org || !planConfig((org as Organization).plan).aiReview) {
-    return NextResponse.json(
-      { error: "AI review requires the Pro+ plan" },
-      { status: 403 }
-    );
+  if (!org) {
+    return NextResponse.json({ error: "Organization not found" }, { status: 404 });
   }
 
   const { data: vendor } = await db

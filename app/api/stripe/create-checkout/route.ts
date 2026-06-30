@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const plan = body.plan as Plan | undefined;
-  if (plan !== "pro" && plan !== "pro_plus") {
+  const upgradablePlans: Plan[] = ["growth", "scale", "unlimited"];
+  if (!plan || !upgradablePlans.includes(plan)) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
   const priceId = priceIdForPlan(plan);

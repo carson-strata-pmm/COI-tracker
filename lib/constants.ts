@@ -1,46 +1,58 @@
 // ─────────────────────────────────────────────────────────────
-// Plans
+// Plans — annual billing, 4 tiers, AI review on all plans
 // ─────────────────────────────────────────────────────────────
-export type Plan = "free" | "pro" | "pro_plus";
+export type Plan = "starter" | "growth" | "scale" | "unlimited";
 
 export interface PlanConfig {
   id: Plan;
   name: string;
-  priceMonthly: number;
+  priceYearly: number;
   vendorLimit: number | null; // null = unlimited
-  aiReview: boolean;
   priceIdEnv: string; // env var holding the Stripe price id
 }
 
 export const PLANS: Record<Plan, PlanConfig> = {
-  free: {
-    id: "free",
-    name: "Free",
-    priceMonthly: 0,
-    vendorLimit: 15,
-    aiReview: false,
-    priceIdEnv: "STRIPE_FREE_PRICE_ID",
+  starter: {
+    id: "starter",
+    name: "Starter",
+    priceYearly: 20,
+    vendorLimit: 10,
+    priceIdEnv: "STRIPE_STARTER_PRICE_ID",
   },
-  pro: {
-    id: "pro",
-    name: "Pro",
-    priceMonthly: 19,
+  growth: {
+    id: "growth",
+    name: "Growth",
+    priceYearly: 100,
+    vendorLimit: 30,
+    priceIdEnv: "STRIPE_GROWTH_PRICE_ID",
+  },
+  scale: {
+    id: "scale",
+    name: "Scale",
+    priceYearly: 200,
     vendorLimit: 50,
-    aiReview: false,
-    priceIdEnv: "STRIPE_PRO_PRICE_ID",
+    priceIdEnv: "STRIPE_SCALE_PRICE_ID",
   },
-  pro_plus: {
-    id: "pro_plus",
-    name: "Pro+",
-    priceMonthly: 39,
+  unlimited: {
+    id: "unlimited",
+    name: "Unlimited",
+    priceYearly: 500,
     vendorLimit: null,
-    aiReview: true,
-    priceIdEnv: "STRIPE_PRO_PLUS_PRICE_ID",
+    priceIdEnv: "STRIPE_UNLIMITED_PRICE_ID",
   },
 };
 
+export const PLAN_ORDER: Plan[] = ["starter", "growth", "scale", "unlimited"];
+
 export function planConfig(plan: string | null | undefined): PlanConfig {
-  return PLANS[(plan as Plan) ?? "free"] ?? PLANS.free;
+  return PLANS[(plan as Plan) ?? "starter"] ?? PLANS.starter;
+}
+
+/** The next tier up from the given plan, or null if already at the top. */
+export function nextPlan(plan: Plan): PlanConfig | null {
+  const idx = PLAN_ORDER.indexOf(plan);
+  if (idx === -1 || idx === PLAN_ORDER.length - 1) return null;
+  return PLANS[PLAN_ORDER[idx + 1]];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -52,12 +64,8 @@ export type VendorStatus =
   | "expired"
   | "missing";
 
-// Days-until-expiration threshold separating "compliant" from
-// "expiring_soon". Also the first reminder offset.
 export const EXPIRING_SOON_DAYS = 45;
 
-// Reminder offsets (days until expiration) the daily cron checks.
-// Negative means after expiration.
 export const REMINDER_OFFSETS = [45, 14, 0, -7] as const;
 
 // ─────────────────────────────────────────────────────────────
@@ -66,13 +74,12 @@ export const REMINDER_OFFSETS = [45, 14, 0, -7] as const;
 export const COI_BUCKET = "coi-documents";
 
 // ─────────────────────────────────────────────────────────────
-// Dev (auth deferred to Phase 8)
+// Dev
 // ─────────────────────────────────────────────────────────────
 export const DEV_ORG_ID =
   process.env.NEXT_PUBLIC_DEV_ORG_ID ??
   "00000000-0000-0000-0000-000000000001";
 
-// Industry options surfaced in settings + onboarding.
 export const INDUSTRY_TYPES = [
   { value: "general_contractor", label: "General Contractor" },
   { value: "property_management", label: "Property Management" },

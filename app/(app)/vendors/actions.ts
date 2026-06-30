@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { isDbConfigured, recalculateVendorStatus } from "@/lib/queries";
 import { getActiveOrgId, getActiveOrg } from "@/lib/auth";
-import { planConfig } from "@/lib/constants";
+import { planConfig, nextPlan, type PlanConfig } from "@/lib/constants";
 import { generateUploadToken } from "@/lib/upload-token";
 import { sendEmail, hasResend } from "@/lib/resend";
 import { sendSms, hasTwilio } from "@/lib/twilio";
@@ -27,7 +27,7 @@ const vendorSchema = z.object({
 
 export type ActionResult =
   | { ok: true; uploadUrl?: string; emailed?: boolean; texted?: boolean }
-  | { ok: false; error: string };
+  | { ok: false; error: string; upgradePlan?: PlanConfig };
 
 function notConfigured(): ActionResult {
   return {
@@ -71,9 +71,11 @@ export async function createVendor(
       .select("id", { count: "exact", head: true })
       .eq("org_id", org.id);
     if ((count ?? 0) >= plan.vendorLimit) {
+      const upgrade = nextPlan(org.plan);
       return {
         ok: false,
-        error: `You've reached the ${plan.name} plan limit of ${plan.vendorLimit} vendors. Upgrade to add more.`,
+        error: `You've reached the ${plan.name} plan limit of ${plan.vendorLimit} vendors.`,
+        upgradePlan: upgrade ?? undefined,
       };
     }
   }

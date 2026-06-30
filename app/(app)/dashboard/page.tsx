@@ -6,15 +6,13 @@ import { EmptyState } from "@/components/EmptyState";
 import { DbNotice } from "@/components/DbNotice";
 import { getVendorsWithCerts, isDbConfigured } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
-import { planConfig } from "@/lib/constants";
 
 // DB-backed; never freeze fixture/seed data at build time.
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const org = await requireActiveOrg();
+  await requireActiveOrg();
   const vendors = await getVendorsWithCerts();
-  const plan = planConfig(org.plan);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -40,7 +38,7 @@ export default async function DashboardPage() {
       ) : (
         <>
           <ComplianceSummary vendors={vendors} />
-          <VendorTable vendors={vendors} showAiColumn={plan.aiReview} />
+          <VendorTable vendors={vendors} showAiColumn={true} />
         </>
       )}
     </div>

@@ -22,11 +22,11 @@ export function hasStripe(): boolean {
 
 /** Map a Stripe price id back to one of our plans. */
 export function planForPriceId(priceId: string | null | undefined): Plan {
-  if (!priceId) return "free";
+  if (!priceId) return "starter";
   for (const plan of Object.values(PLANS)) {
     if (process.env[plan.priceIdEnv] === priceId) return plan.id;
   }
-  return "free";
+  return "starter";
 }
 
 /** The configured Stripe price id for a plan. */

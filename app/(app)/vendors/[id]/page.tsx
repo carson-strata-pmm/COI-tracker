@@ -23,7 +23,6 @@ import {
 } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
 import { latestCertificate } from "@/lib/status";
-import { planConfig } from "@/lib/constants";
 import { formatDate, formatMoney, humanizeKey } from "@/lib/format";
 
 export default async function VendorDetailPage({
@@ -31,17 +30,15 @@ export default async function VendorDetailPage({
 }: {
   params: { id: string };
 }) {
-  const [vendor, org, certs] = await Promise.all([
+  await requireActiveOrg();
+  const [vendor, certs] = await Promise.all([
     getVendor(params.id),
-    requireActiveOrg(),
     getVendorCertificates(params.id),
   ]);
   if (!vendor) notFound();
 
-  const plan = planConfig(org.plan);
   const current = latestCertificate(certs);
-  const review =
-    plan.aiReview && current ? await getAIReviewForCert(current.id) : null;
+  const review = current ? await getAIReviewForCert(current.id) : null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -190,7 +187,7 @@ export default async function VendorDetailPage({
             </CardContent>
           </Card>
 
-          {plan.aiReview && <AIReportCard review={review} />}
+          <AIReportCard review={review} />
         </div>
       </div>
     </div>

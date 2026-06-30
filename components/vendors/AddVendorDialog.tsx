@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { Check, Copy, Plus } from "lucide-react";
+import { ArrowRight, Check, Copy, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { VendorFormFields } from "@/components/vendors/VendorFormFields";
 import { createVendor, type ActionResult } from "@/app/(app)/vendors/actions";
+import type { PlanConfig } from "@/lib/constants";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -22,6 +23,65 @@ function SubmitButton() {
     <Button type="submit" disabled={pending}>
       {pending ? "Adding…" : "Add vendor"}
     </Button>
+  );
+}
+
+function UpgradePrompt({
+  currentError,
+  upgradePlan,
+  onClose,
+}: {
+  currentError: string;
+  upgradePlan: PlanConfig;
+  onClose: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  async function upgrade() {
+    setPending(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: upgradePlan.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Checkout unavailable");
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      setCheckoutError(e instanceof Error ? e.message : "Checkout unavailable");
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+        <p className="font-medium text-amber-900">{currentError}</p>
+        <p className="mt-1 text-amber-800">
+          Upgrade to <strong>{upgradePlan.name}</strong> (${upgradePlan.priceYearly}/yr) to track{" "}
+          {upgradePlan.vendorLimit === null
+            ? "unlimited vendors"
+            : `up to ${upgradePlan.vendorLimit} vendors`}
+          .
+        </p>
+      </div>
+      {checkoutError && (
+        <p className="text-sm text-destructive">{checkoutError}</p>
+      )}
+      <DialogFooter className="gap-2">
+        <Button variant="outline" onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button onClick={upgrade} disabled={pending}>
+          {pending ? "Redirecting…" : (
+            <>Upgrade to {upgradePlan.name} <ArrowRight className="ml-1.5 h-4 w-4" /></>
+          )}
+        </Button>
+      </DialogFooter>
+    </div>
   );
 }
 
@@ -132,6 +192,12 @@ export function AddVendorDialog({
         {state?.ok && state.uploadUrl ? (
           <SuccessStep
             state={state as Extract<ActionResult, { ok: true }> & { uploadUrl: string }}
+            onClose={() => setOpen(false)}
+          />
+        ) : state && !state.ok && state.upgradePlan ? (
+          <UpgradePrompt
+            currentError={state.error}
+            upgradePlan={state.upgradePlan}
             onClose={() => setOpen(false)}
           />
         ) : (

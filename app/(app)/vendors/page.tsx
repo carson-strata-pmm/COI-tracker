@@ -38,7 +38,7 @@ export default async function VendorsPage() {
           action={<AddVendorDialog />}
         />
       ) : (
-        <VendorTable vendors={vendors} showAiColumn={plan.aiReview} />
+        <VendorTable vendors={vendors} showAiColumn={true} />
       )}
     </div>
   );

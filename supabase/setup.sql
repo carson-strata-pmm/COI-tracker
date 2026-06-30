@@ -260,6 +260,11 @@ create policy "org members upload their coi documents"
     )
   );
 
+-- ============ 0005_new_plans.sql ============
+update organizations set plan = 'unlimited' where plan = 'pro_plus';
+update organizations set plan = 'growth'    where plan = 'pro';
+update organizations set plan = 'starter'   where plan = 'free';
+
 -- ============ seed.sql ============
 -- ─────────────────────────────────────────────────────────────
 -- CertTrack — development seed
@@ -274,7 +279,7 @@ values (
   '00000000-0000-0000-0000-000000000001',
   'Acme General Contracting',
   'general_contractor',
-  'pro_plus'
+  'unlimited'
 )
 on conflict (id) do update
   set name = excluded.name,
