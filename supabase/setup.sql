@@ -265,6 +265,11 @@ update organizations set plan = 'unlimited' where plan = 'pro_plus';
 update organizations set plan = 'growth'    where plan = 'pro';
 update organizations set plan = 'starter'   where plan = 'free';
 
+-- ============ 0006_rename_plans.sql ============
+update organizations set plan = 'solo'   where plan = 'starter';
+update organizations set plan = 'crew'   where plan = 'growth';
+update organizations set plan = 'outfit' where plan = 'scale';
+
 -- ============ seed.sql ============
 -- ─────────────────────────────────────────────────────────────
 -- CertTrack — development seed

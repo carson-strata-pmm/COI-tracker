@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const plan = body.plan as Plan | undefined;
-  const upgradablePlans: Plan[] = ["growth", "scale", "unlimited"];
+  const upgradablePlans: Plan[] = ["crew", "outfit", "unlimited"];
   if (!plan || !upgradablePlans.includes(plan)) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }

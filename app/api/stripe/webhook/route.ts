@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       if (orgId) {
         await db
           .from("organizations")
-          .update({ plan: "starter", stripe_subscription_id: null })
+          .update({ plan: "solo", stripe_subscription_id: null })
           .eq("id", orgId);
       }
       break;
@@ -99,7 +99,7 @@ async function syncSubscription(
   await db
     .from("organizations")
     .update({
-      plan: sub.status === "active" || sub.status === "trialing" ? plan : "starter",
+      plan: sub.status === "active" || sub.status === "trialing" ? plan : "solo",
       stripe_customer_id: customerId,
       stripe_subscription_id: sub.id,
     })
