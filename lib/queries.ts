@@ -16,7 +16,9 @@ import { computeVendorStatus, latestCertificate } from "@/lib/status";
 import { FIXTURE_ORG, FIXTURE_VENDORS } from "@/lib/fixtures";
 import type {
   Certificate,
+  CoverageRequirement,
   Organization,
+  ResolvedRequirement,
   Vendor,
   VendorWithCert,
   AIReview,
@@ -165,4 +167,117 @@ export async function recalculateVendorStatus(
     .eq("vendor_id", vendorId);
   const status = computeVendorStatus((certs as Certificate[]) ?? []);
   await db.from("vendors").update({ status }).eq("id", vendorId);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Coverage requirements
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Returns all vendor types (from system defaults) merged with any
+ * org-specific overrides. Each row reflects the currently active
+ * values for that vendor type.
+ */
+export async function getResolvedRequirements(): Promise<ResolvedRequirement[]> {
+  if (!isDbConfigured()) return [];
+
+  const orgId = await getActiveOrgId();
+  const db = createAdminClient();
+
+  const [{ data: defaults }, { data: overrides }] = await Promise.all([
+    db
+      .from("coverage_requirements")
+      .select("*")
+      .is("org_id", null)
+      .order("vendor_type"),
+    orgId
+      ? db
+          .from("coverage_requirements")
+          .select("*")
+          .eq("org_id", orgId)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const overrideMap = new Map(
+    ((overrides ?? []) as CoverageRequirement[]).map((r) => [r.vendor_type, r])
+  );
+
+  return ((defaults ?? []) as CoverageRequirement[]).map((d) => {
+    const override = overrideMap.get(d.vendor_type);
+    return override
+      ? { ...(override as CoverageRequirement), hasCustomOverride: true }
+      : { ...d, hasCustomOverride: false };
+  });
+}
+
+/**
+ * Upsert a custom override for the active org. Returns the saved row.
+ */
+export async function upsertCoverageRequirement(
+  vendorType: string,
+  values: Omit<CoverageRequirement, "id" | "org_id" | "vendor_type" | "created_at" | "is_custom">
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isDbConfigured()) return { ok: false, error: "Database not configured" };
+  const orgId = await getActiveOrgId();
+  if (!orgId) return { ok: false, error: "No active org" };
+
+  const db = createAdminClient();
+  const { error } = await db.from("coverage_requirements").upsert(
+    { org_id: orgId, vendor_type: vendorType, is_custom: true, ...values },
+    { onConflict: "org_id,vendor_type" }
+  );
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Delete the org's custom override for a vendor type, reverting to the
+ * system default.
+ */
+export async function deleteCoverageRequirement(
+  vendorType: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isDbConfigured()) return { ok: false, error: "Database not configured" };
+  const orgId = await getActiveOrgId();
+  if (!orgId) return { ok: false, error: "No active org" };
+
+  const db = createAdminClient();
+  const { error } = await db
+    .from("coverage_requirements")
+    .delete()
+    .eq("org_id", orgId)
+    .eq("vendor_type", vendorType);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Count vendors of a given type that have a certificate on file.
+ * Used to report how many certs will be re-reviewed after a
+ * requirement change.
+ */
+export async function countVendorsWithCerts(
+  vendorType: string
+): Promise<number> {
+  if (!isDbConfigured()) return 0;
+  const orgId = await getActiveOrgId();
+  if (!orgId) return 0;
+
+  const db = createAdminClient();
+  const { data: vendors } = await db
+    .from("vendors")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("vendor_type", vendorType);
+
+  if (!vendors || vendors.length === 0) return 0;
+
+  const vendorIds = vendors.map((v) => v.id);
+  const { count } = await db
+    .from("certificates")
+    .select("vendor_id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .in("vendor_id", vendorIds);
+
+  return count ?? 0;
 }

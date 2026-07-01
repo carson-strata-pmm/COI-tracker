@@ -50,17 +50,61 @@ export interface Certificate {
   uploaded_by: "org" | "vendor" | null;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Coverage requirements
+// ─────────────────────────────────────────────────────────────
+
+export interface CoverageRequirement {
+  id: string;
+  org_id: string | null; // null = system default
+  vendor_type: string;
+  gl_per_occurrence_min: number | null;
+  gl_aggregate_min: number | null;
+  workers_comp_required: boolean;
+  auto_required: boolean;
+  auto_min: number | null;
+  umbrella_required: boolean;
+  umbrella_min: number | null;
+  additional_insured_required: boolean;
+  waiver_of_subrogation_required: boolean;
+  is_custom: boolean;
+  created_at: string;
+}
+
+// Merged view for the settings table — the resolved values plus a flag
+// indicating whether an org override is in effect.
+export interface ResolvedRequirement extends CoverageRequirement {
+  hasCustomOverride: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI review
+// ─────────────────────────────────────────────────────────────
+
 export interface AIReviewIssue {
   field: string;
   severity: "warning" | "critical";
   message: string;
 }
 
+export interface AIReviewCheck {
+  requirement: string;
+  required: string;
+  found: string;
+  passed: boolean;
+  severity: "critical" | "warning" | null;
+  message: string | null;
+}
+
 export interface AIReviewReport {
   issues_found: number;
-  issues: AIReviewIssue[];
-  summary: string;
   clean: boolean;
+  summary: string;
+  named_insured_match?: boolean | null;
+  // Structured pass/fail per requirement (new format, migration 0008+)
+  checks?: AIReviewCheck[];
+  // Legacy flat issues list (reports generated before migration 0008)
+  issues?: AIReviewIssue[];
 }
 
 export interface AIReview {

@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VENDOR_TYPES } from "@/lib/vendor-types";
 import type { Vendor } from "@/lib/types";
 
 export function VendorFormFields({ vendor }: { vendor?: Vendor }) {
@@ -14,6 +15,25 @@ export function VendorFormFields({ vendor }: { vendor?: Vendor }) {
           defaultValue={vendor?.company_name ?? ""}
           placeholder="Bright Spark Electric"
         />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="vendor_type">Vendor type *</Label>
+        <select
+          id="vendor_type"
+          name="vendor_type"
+          required
+          defaultValue={vendor?.vendor_type ?? ""}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <option value="" disabled>
+            Select a vendor type…
+          </option>
+          {VENDOR_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="contact_name">Contact name</Label>
@@ -42,15 +62,6 @@ export function VendorFormFields({ vendor }: { vendor?: Vendor }) {
           type="tel"
           defaultValue={vendor?.contact_phone ?? ""}
           placeholder="+1 555 000 0000"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="vendor_type">Vendor type</Label>
-        <Input
-          id="vendor_type"
-          name="vendor_type"
-          defaultValue={vendor?.vendor_type ?? ""}
-          placeholder="electrical, roofing, landscaping…"
         />
       </div>
     </div>

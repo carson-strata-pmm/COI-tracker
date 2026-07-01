@@ -2,13 +2,11 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase-admin";
 import { runComplianceReview, hasAnthropic } from "@/lib/anthropic";
-import { formatMoney, humanizeKey } from "@/lib/format";
-import type { Certificate, Organization, Vendor } from "@/lib/types";
+import type { Certificate, CoverageRequirement, Organization, Vendor } from "@/lib/types";
 
 /**
  * Run an AI compliance review for a certificate and persist it to
- * ai_reviews. Safe to call for any cert; callers gate on the org's
- * plan (Pro+ only). Returns the number of issues found, or null when
+ * ai_reviews. Returns the number of issues found, or null when
  * Anthropic isn't configured.
  */
 export async function triggerAiReview(args: {
@@ -32,15 +30,23 @@ export async function triggerAiReview(args: {
     .single();
 
   try {
+    const requirements = await resolveRequirements(
+      args.org.id,
+      args.vendor.vendor_type
+    );
+    const certDetails = extractCertDetails(args.cert);
+
     const report = await runComplianceReview({
       vendor_type: args.vendor.vendor_type,
-      industry_type: args.org.industry_type,
+      org_name: args.org.name,
+      vendor_company_name: args.vendor.company_name,
       named_insured: args.cert.named_insured,
       insurer_name: args.cert.insurer_name,
       expiration_date: args.cert.expiration_date,
-      coverage_types_and_limits: describeCoverage(args.cert),
       additional_insured: args.cert.additional_insured,
       waiver_of_subrogation: args.cert.waiver_of_subrogation,
+      requirements,
+      ...certDetails,
     });
 
     await db
@@ -65,12 +71,84 @@ export async function triggerAiReview(args: {
   }
 }
 
-function describeCoverage(cert: Certificate): string {
-  const types = (cert.coverage_types ?? []).join(", ") || "unknown";
-  const limits = cert.limits
-    ? Object.entries(cert.limits)
-        .map(([k, v]) => `${humanizeKey(k)}: ${formatMoney(v)}`)
-        .join("; ")
-    : "unknown";
-  return `Types: ${types}. Limits: ${limits}.`;
+// ─────────────────────────────────────────────────────────────
+// Requirements resolution
+// ─────────────────────────────────────────────────────────────
+
+async function resolveRequirements(
+  orgId: string,
+  vendorType: string | null
+): Promise<CoverageRequirement | null> {
+  if (!vendorType) return null;
+  const db = createAdminClient();
+
+  // Org override takes priority.
+  const { data: override } = await db
+    .from("coverage_requirements")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("vendor_type", vendorType)
+    .maybeSingle();
+  if (override) return override as CoverageRequirement;
+
+  // Fall back to system default.
+  const { data: def } = await db
+    .from("coverage_requirements")
+    .select("*")
+    .is("org_id", null)
+    .eq("vendor_type", vendorType)
+    .maybeSingle();
+  return (def as CoverageRequirement) ?? null;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Certificate detail extraction
+// ─────────────────────────────────────────────────────────────
+
+function getLimit(
+  limits: Record<string, number | string> | null,
+  ...patterns: string[]
+): number | null {
+  if (!limits) return null;
+  for (const [key, val] of Object.entries(limits)) {
+    const norm = key.toLowerCase().replace(/[\s-]/g, "_");
+    if (patterns.some((p) => norm.includes(p))) {
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    }
+  }
+  return null;
+}
+
+function hasCoverageType(
+  types: string[] | null,
+  ...patterns: string[]
+): boolean {
+  if (!types) return false;
+  return types.some((t) =>
+    patterns.some((p) => t.toLowerCase().includes(p.toLowerCase()))
+  );
+}
+
+function extractCertDetails(cert: Certificate) {
+  const limits = cert.limits;
+  const types = cert.coverage_types;
+
+  return {
+    gl_per_occurrence: getLimit(
+      limits,
+      "each_occurrence",
+      "per_occurrence",
+      "occurrence"
+    ),
+    gl_aggregate: getLimit(limits, "aggregate"),
+    workers_comp_detected: hasCoverageType(
+      types,
+      "workers",
+      "comp",
+      "compensation"
+    ),
+    auto_limit: getLimit(limits, "auto"),
+    umbrella_limit: getLimit(limits, "umbrella", "excess"),
+  };
 }

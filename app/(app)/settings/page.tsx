@@ -7,8 +7,9 @@ import {
 } from "@/components/ui/card";
 import { OrgSettingsForm } from "@/components/settings/OrgSettingsForm";
 import { BillingControls } from "@/components/settings/BillingControls";
+import { CoverageRequirements } from "@/components/settings/CoverageRequirements";
 import { DbNotice } from "@/components/DbNotice";
-import { isDbConfigured } from "@/lib/queries";
+import { isDbConfigured, getResolvedRequirements } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
 import { planConfig } from "@/lib/constants";
 
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const org = await requireActiveOrg();
   const plan = planConfig(org.plan);
+  const requirements = await getResolvedRequirements();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -51,6 +53,19 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <BillingControls currentPlan={org.plan} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Coverage requirements</CardTitle>
+          <CardDescription>
+            Minimum insurance limits checked during AI review. Defaults are
+            market-standard; override any row to match your contracts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CoverageRequirements requirements={requirements} />
         </CardContent>
       </Card>
     </div>

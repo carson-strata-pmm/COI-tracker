@@ -3,8 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { isDbConfigured } from "@/lib/queries";
+import {
+  isDbConfigured,
+  upsertCoverageRequirement,
+  deleteCoverageRequirement,
+} from "@/lib/queries";
 import { getActiveOrgId } from "@/lib/auth";
+import { triggerAiReview } from "@/lib/ai-review";
+import type { Certificate, Organization, Vendor } from "@/lib/types";
 
 const orgSchema = z.object({
   name: z.string().trim().min(1, "Organization name is required"),
@@ -12,6 +18,9 @@ const orgSchema = z.object({
 });
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+export type CoverageActionResult =
+  | { ok: true; rereviewed: number }
+  | { ok: false; error: string };
 
 export async function updateOrg(
   _prev: ActionResult | null,
@@ -50,4 +59,109 @@ export async function updateOrg(
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Coverage requirement actions
+// ─────────────────────────────────────────────────────────────
+
+export async function saveCoverageRequirement(
+  vendorType: string,
+  formData: FormData
+): Promise<CoverageActionResult> {
+  const values = {
+    gl_per_occurrence_min: parseIntOrNull(formData.get("gl_per_occurrence_min")),
+    gl_aggregate_min: parseIntOrNull(formData.get("gl_aggregate_min")),
+    workers_comp_required: formData.get("workers_comp_required") === "true",
+    auto_required: formData.get("auto_required") === "true",
+    auto_min: parseIntOrNull(formData.get("auto_min")),
+    umbrella_required: formData.get("umbrella_required") === "true",
+    umbrella_min: parseIntOrNull(formData.get("umbrella_min")),
+    additional_insured_required:
+      formData.get("additional_insured_required") === "true",
+    waiver_of_subrogation_required:
+      formData.get("waiver_of_subrogation_required") === "true",
+  };
+
+  const result = await upsertCoverageRequirement(vendorType, values);
+  if (!result.ok) return result;
+
+  revalidatePath("/settings");
+
+  const rereviewed = await triggerRereviews(vendorType);
+  return { ok: true, rereviewed };
+}
+
+export async function resetCoverageRequirement(
+  vendorType: string
+): Promise<CoverageActionResult> {
+  const result = await deleteCoverageRequirement(vendorType);
+  if (!result.ok) return result;
+
+  revalidatePath("/settings");
+
+  const rereviewed = await triggerRereviews(vendorType);
+  return { ok: true, rereviewed };
+}
+
+async function triggerRereviews(vendorType: string): Promise<number> {
+  if (!isDbConfigured()) return 0;
+
+  const orgId = await getActiveOrgId();
+  if (!orgId) return 0;
+
+  const db = createAdminClient();
+
+  const { data: vendors } = await db
+    .from("vendors")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("vendor_type", vendorType);
+
+  if (!vendors || vendors.length === 0) return 0;
+
+  const vendorIds = vendors.map((v) => v.id);
+
+  const { data: allCerts } = await db
+    .from("certificates")
+    .select("*")
+    .eq("org_id", orgId)
+    .in("vendor_id", vendorIds)
+    .order("uploaded_at", { ascending: false });
+
+  const latestByVendor = new Map<string, Certificate>();
+  for (const cert of (allCerts ?? []) as Certificate[]) {
+    if (!latestByVendor.has(cert.vendor_id)) {
+      latestByVendor.set(cert.vendor_id, cert);
+    }
+  }
+
+  if (latestByVendor.size === 0) return 0;
+
+  const { data: orgRow } = await db
+    .from("organizations")
+    .select("*")
+    .eq("id", orgId)
+    .single();
+  if (!orgRow) return 0;
+
+  const results = await Promise.all(
+    (vendors as Vendor[])
+      .filter((v) => latestByVendor.has(v.id))
+      .map((v) =>
+        triggerAiReview({
+          cert: latestByVendor.get(v.id)!,
+          vendor: v,
+          org: orgRow as Organization,
+        })
+      )
+  );
+
+  return results.filter((r) => r !== null).length;
+}
+
+function parseIntOrNull(val: FormDataEntryValue | null): number | null {
+  if (val === null || val === "") return null;
+  const n = parseInt(String(val), 10);
+  return isNaN(n) ? null : n;
 }
