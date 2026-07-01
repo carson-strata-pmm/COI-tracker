@@ -33,12 +33,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       const supabase = createClient();
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${appUrl}/auth/callback?next=/onboarding` },
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
         });
-        if (error) throw error;
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Something went wrong");
         setNotice(
           "Check your email to confirm your account, then sign in to finish setup."
         );
