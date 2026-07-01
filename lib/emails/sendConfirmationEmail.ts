@@ -1,7 +1,132 @@
 import "server-only";
 import { Resend } from "resend";
-import fs from "fs";
-import path from "path";
+
+const CONFIRMATION_TEMPLATE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confirm your CertTrack account</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    }
+    .wrapper {
+      max-width: 560px;
+      margin: 48px auto;
+      background: #ffffff;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e5e5e3;
+    }
+    .header {
+      padding: 32px 40px 24px;
+      border-bottom: 1px solid #f0f0ee;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      letter-spacing: -0.2px;
+    }
+    .body {
+      padding: 36px 40px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin: 0 0 12px;
+      letter-spacing: -0.3px;
+      line-height: 1.3;
+    }
+    p {
+      font-size: 15px;
+      color: #555553;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #1a1a1a;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      padding: 13px 28px;
+      border-radius: 7px;
+      letter-spacing: -0.1px;
+    }
+    .btn-wrap {
+      margin-bottom: 32px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid #f0f0ee;
+      margin: 32px 0;
+    }
+    .fallback {
+      font-size: 13px;
+      color: #888886;
+      line-height: 1.6;
+      margin: 0;
+    }
+    .fallback a {
+      color: #555553;
+      word-break: break-all;
+    }
+    .footer {
+      padding: 20px 40px 28px;
+      background: #fafaf8;
+      border-top: 1px solid #f0f0ee;
+    }
+    .footer p {
+      font-size: 12px;
+      color: #aaa9a7;
+      margin: 0;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="28" height="28" rx="7" fill="#1a1a1a"/>
+          <path d="M14 6L8 9.5V15C8 18.3 10.6 21.4 14 22C17.4 21.4 20 18.3 20 15V9.5L14 6Z" fill="white" fill-opacity="0.15"/>
+          <path d="M14 6L8 9.5V15C8 18.3 10.6 21.4 14 22C17.4 21.4 20 18.3 20 15V9.5L14 6Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M11 14.5L13 16.5L17 12.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="logo-name">CertTrack</span>
+      </div>
+    </div>
+    <div class="body">
+      <h1>Confirm your email to get started</h1>
+      <p>You're one step away from tracking your vendor certificates automatically. Click the button below to confirm your email and finish setting up your account.</p>
+      <div class="btn-wrap">
+        <a href="CONFIRMATION_URL_PLACEHOLDER" class="btn">Confirm my email</a>
+      </div>
+      <p>Once confirmed, you'll be able to add your first vendor and send a COI request in under two minutes.</p>
+      <hr class="divider" />
+      <p class="fallback">Button not working? Copy and paste this link into your browser:<br />
+        <a href="CONFIRMATION_URL_PLACEHOLDER">CONFIRMATION_URL_PLACEHOLDER</a>
+      </p>
+    </div>
+    <div class="footer">
+      <p>You're receiving this because someone signed up for CertTrack using this email address. If that wasn't you, you can safely ignore this email — no account will be created.</p>
+    </div>
+  </div>
+</body>
+</html>`;
 
 export async function sendConfirmationEmail(
   email: string,
@@ -9,13 +134,10 @@ export async function sendConfirmationEmail(
 ): Promise<void> {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
-  const templatePath = path.join(
-    process.cwd(),
-    "emails",
-    "confirmation.html"
+  const html = CONFIRMATION_TEMPLATE.replaceAll(
+    "CONFIRMATION_URL_PLACEHOLDER",
+    confirmationUrl
   );
-  let html = fs.readFileSync(templatePath, "utf-8");
-  html = html.replaceAll("CONFIRMATION_URL_PLACEHOLDER", confirmationUrl);
 
   await resend.emails.send({
     from: `CertTrack <${process.env.RESEND_FROM_EMAIL}>`,
