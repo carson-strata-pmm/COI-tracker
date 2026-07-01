@@ -47,7 +47,7 @@ export function CoverageRequirements({
   if (requirements.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Run the migration in Supabase to load coverage requirements.
+        Run the migration in Supabase to load coverage rules.
       </p>
     );
   }
@@ -224,7 +224,7 @@ function EditModal({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit requirements — {req.vendor_type}</DialogTitle>
+          <DialogTitle>Edit coverage rules — {req.vendor_type}</DialogTitle>
           <DialogDescription>
             Adjustments apply to your org only and take effect on the next AI
             review for this vendor type.
