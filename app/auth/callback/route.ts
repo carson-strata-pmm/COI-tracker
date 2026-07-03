@@ -1,12 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
 /**
  * OAuth/magic-link/email-confirmation callback. Exchanges the code
  * for a session cookie, then redirects to `next` (or the dashboard).
+ *
+ * Cookies are written directly onto the redirect response so they are
+ * included in the Set-Cookie headers — using cookies() from next/headers
+ * and then returning a new NextResponse.redirect() loses them.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -17,11 +20,12 @@ export async function GET(request: NextRequest) {
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (code && url && anon) {
-    const cookieStore = cookies();
+    const response = NextResponse.redirect(`${origin}${next}`);
+
     const supabase = createServerClient(url, anon, {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return request.cookies.getAll();
         },
         setAll(
           cookiesToSet: {
@@ -31,14 +35,19 @@ export async function GET(request: NextRequest) {
           }[]
         ) {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            response.cookies.set(
+              name,
+              value,
+              options as Parameters<typeof response.cookies.set>[2]
+            )
           );
         },
       },
     });
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return response;
     }
   }
 
