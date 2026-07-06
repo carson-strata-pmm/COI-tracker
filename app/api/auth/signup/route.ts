@@ -18,28 +18,36 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // generateLink registers the user and returns the confirmation URL in one
+  // generateLink registers the user and returns a token hash in one
   // call — no separate signUp needed, which avoids double-registration.
+  //
+  // We build our own confirmation URL from properties.hashed_token
+  // rather than using properties.action_link: action_link points to
+  // Supabase's own hosted /auth/v1/verify redirect, which uses an
+  // implicit-flow hash-fragment token and falls back to the project's
+  // Site URL if redirectTo isn't in the allowed list. Verifying the
+  // token hash ourselves in /auth/confirm avoids both problems.
   const { data, error } = await admin.auth.admin.generateLink({
     type: "signup",
     email,
     password,
-    options: {
-      redirectTo: `${appUrl}/auth/callback?next=/onboarding`,
-    },
   });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const confirmationUrl = data?.properties?.action_link;
-  if (!confirmationUrl) {
+  const tokenHash = data?.properties?.hashed_token;
+  if (!tokenHash) {
     return NextResponse.json(
       { error: "Failed to generate confirmation link." },
       { status: 500 }
     );
   }
+
+  const confirmationUrl = `${appUrl}/auth/confirm?token_hash=${tokenHash}&type=signup&next=${encodeURIComponent(
+    "/onboarding"
+  )}`;
 
   try {
     await sendConfirmationEmail(email, confirmationUrl);
