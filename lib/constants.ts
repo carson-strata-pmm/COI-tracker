@@ -95,13 +95,24 @@ export const DEV_ORG_ID =
   "00000000-0000-0000-0000-000000000001";
 
 export const INDUSTRY_TYPES = [
-  { value: "general_contractor", label: "General Contractor" },
-  { value: "property_management", label: "Property Management" },
-  { value: "salon_spa", label: "Salon / Spa" },
-  { value: "venue_events", label: "Venue / Events" },
-  { value: "landscaping", label: "Landscaping" },
-  { value: "cleaning", label: "Cleaning Services" },
+  { value: "construction_trades", label: "Construction & Trades" },
+  { value: "property_facilities", label: "Property & Facilities" },
+  { value: "food_events", label: "Food & Events" },
+  { value: "salon_wellness", label: "Salon & Wellness" },
   { value: "other", label: "Other" },
 ] as const;
 
 export type IndustryType = (typeof INDUSTRY_TYPES)[number]["value"];
+
+// Industry values used before this category set was simplified from 7
+// industries down to these 5. Mapped so orgs that onboarded earlier
+// still resolve to a sensible vendor-type set instead of falling back
+// to "show everything".
+export const LEGACY_INDUSTRY_ALIASES: Record<string, IndustryType> = {
+  general_contractor: "construction_trades",
+  property_management: "property_facilities",
+  landscaping: "property_facilities",
+  cleaning: "property_facilities",
+  venue_events: "food_events",
+  salon_spa: "salon_wellness",
+};
