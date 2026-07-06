@@ -234,8 +234,10 @@ function SuccessStep({
 
 export function AddVendorDialog({
   triggerVariant = "default",
+  vendorTypes,
 }: {
   triggerVariant?: "default" | "outline";
+  vendorTypes: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState<ActionResult | null, FormData>(
@@ -294,7 +296,7 @@ export function AddVendorDialog({
           />
         ) : (
           <form action={formAction} className="grid gap-4">
-            <VendorFormFields />
+            <VendorFormFields vendorTypes={vendorTypes} />
             {state && !state.ok && !isFirstUpgrade && !isPaidUpgrade && (
               <p className="text-sm text-destructive">{state.error}</p>
             )}

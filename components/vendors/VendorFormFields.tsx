@@ -1,9 +1,22 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { VENDOR_TYPES } from "@/lib/vendor-types";
 import type { Vendor } from "@/lib/types";
 
-export function VendorFormFields({ vendor }: { vendor?: Vendor }) {
+export function VendorFormFields({
+  vendor,
+  vendorTypes,
+}: {
+  vendor?: Vendor;
+  vendorTypes: string[];
+}) {
+  // Keep the vendor's current type selectable even if it no longer
+  // falls in the (industry-filtered) options list, so editing other
+  // fields never silently changes it.
+  const options =
+    vendor?.vendor_type && !vendorTypes.includes(vendor.vendor_type)
+      ? [...vendorTypes, vendor.vendor_type]
+      : vendorTypes;
+
   return (
     <div className="grid gap-4">
       <div className="grid gap-2">
@@ -28,7 +41,7 @@ export function VendorFormFields({ vendor }: { vendor?: Vendor }) {
           <option value="" disabled>
             Select a vendor type…
           </option>
-          {VENDOR_TYPES.map((t) => (
+          {options.map((t) => (
             <option key={t} value={t}>
               {t}
             </option>

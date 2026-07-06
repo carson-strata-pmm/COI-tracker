@@ -26,7 +26,13 @@ function SubmitButton() {
   );
 }
 
-export function EditVendorDialog({ vendor }: { vendor: Vendor }) {
+export function EditVendorDialog({
+  vendor,
+  vendorTypes,
+}: {
+  vendor: Vendor;
+  vendorTypes: string[];
+}) {
   const [open, setOpen] = useState(false);
   const action = updateVendor.bind(null, vendor.id);
   const [state, formAction] = useFormState<ActionResult | null, FormData>(
@@ -53,7 +59,7 @@ export function EditVendorDialog({ vendor }: { vendor: Vendor }) {
           </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="grid gap-4">
-          <VendorFormFields vendor={vendor} />
+          <VendorFormFields vendor={vendor} vendorTypes={vendorTypes} />
           {state && !state.ok && (
             <p className="text-sm text-destructive">{state.error}</p>
           )}

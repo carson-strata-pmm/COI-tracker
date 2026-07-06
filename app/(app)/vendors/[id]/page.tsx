@@ -19,6 +19,7 @@ import {
   getVendor,
   getVendorCertificates,
   getAIReviewForCert,
+  getVendorTypeOptions,
   isDbConfigured,
 } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
@@ -31,9 +32,10 @@ export default async function VendorDetailPage({
   params: { id: string };
 }) {
   await requireActiveOrg();
-  const [vendor, certs] = await Promise.all([
+  const [vendor, certs, vendorTypes] = await Promise.all([
     getVendor(params.id),
     getVendorCertificates(params.id),
+    getVendorTypeOptions(),
   ]);
   if (!vendor) notFound();
 
@@ -77,7 +79,7 @@ export default async function VendorDetailPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <UploadCoiDialog vendorId={vendor.id} />
-          <EditVendorDialog vendor={vendor} />
+          <EditVendorDialog vendor={vendor} vendorTypes={vendorTypes} />
           <DeleteVendorButton
             vendorId={vendor.id}
             vendorName={vendor.company_name}

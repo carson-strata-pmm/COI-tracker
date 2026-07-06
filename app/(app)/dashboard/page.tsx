@@ -4,7 +4,7 @@ import { VendorTable } from "@/components/dashboard/VendorTable";
 import { AddVendorDialog } from "@/components/vendors/AddVendorDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { DbNotice } from "@/components/DbNotice";
-import { getVendorsWithCerts, isDbConfigured } from "@/lib/queries";
+import { getVendorsWithCerts, getVendorTypeOptions, isDbConfigured } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
 
 // DB-backed; never freeze fixture/seed data at build time.
@@ -12,7 +12,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   await requireActiveOrg();
-  const vendors = await getVendorsWithCerts();
+  const [vendors, vendorTypes] = await Promise.all([
+    getVendorsWithCerts(),
+    getVendorTypeOptions(),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -23,7 +26,7 @@ export default async function DashboardPage() {
             Compliance overview across all your vendors.
           </p>
         </div>
-        {vendors.length > 0 && <AddVendorDialog />}
+        {vendors.length > 0 && <AddVendorDialog vendorTypes={vendorTypes} />}
       </div>
 
       {!isDbConfigured() && <DbNotice />}
@@ -33,7 +36,7 @@ export default async function DashboardPage() {
           icon={Users}
           title="Add your first vendor"
           description="Start tracking certificates of insurance by adding a vendor or subcontractor."
-          action={<AddVendorDialog />}
+          action={<AddVendorDialog vendorTypes={vendorTypes} />}
         />
       ) : (
         <>

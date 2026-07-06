@@ -103,3 +103,5 @@ export const INDUSTRY_TYPES = [
   { value: "cleaning", label: "Cleaning Services" },
   { value: "other", label: "Other" },
 ] as const;
+
+export type IndustryType = (typeof INDUSTRY_TYPES)[number]["value"];

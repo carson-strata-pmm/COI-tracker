@@ -7,6 +7,7 @@ import {
   isDbConfigured,
   upsertCoverageRequirement,
   deleteCoverageRequirement,
+  getResolvedRequirements,
 } from "@/lib/queries";
 import { getActiveOrgId } from "@/lib/auth";
 import { triggerAiReview } from "@/lib/ai-review";
@@ -86,7 +87,7 @@ export async function saveCoverageRequirement(
   const result = await upsertCoverageRequirement(vendorType, values);
   if (!result.ok) return result;
 
-  revalidatePath("/settings");
+  revalidateCoverageRulePaths();
 
   const rereviewed = await triggerRereviews(vendorType);
   return { ok: true, rereviewed };
@@ -98,10 +99,63 @@ export async function resetCoverageRequirement(
   const result = await deleteCoverageRequirement(vendorType);
   if (!result.ok) return result;
 
-  revalidatePath("/settings");
+  revalidateCoverageRulePaths();
 
   const rereviewed = await triggerRereviews(vendorType);
   return { ok: true, rereviewed };
+}
+
+/**
+ * Add a brand-new vendor type, scoped to this org (no system default
+ * exists for it). Used by the "+ Add vendor type" control.
+ */
+export async function addCoverageRequirement(
+  vendorTypeInput: string,
+  formData: FormData
+): Promise<CoverageActionResult> {
+  if (!isDbConfigured()) {
+    return { ok: false, error: "Database not connected." };
+  }
+
+  const vendorType = vendorTypeInput.trim();
+  if (!vendorType) {
+    return { ok: false, error: "Vendor type name is required." };
+  }
+
+  const existing = await getResolvedRequirements();
+  if (
+    existing.some(
+      (r) => r.vendor_type.toLowerCase() === vendorType.toLowerCase()
+    )
+  ) {
+    return { ok: false, error: `"${vendorType}" already exists.` };
+  }
+
+  const values = {
+    gl_per_occurrence_min: parseIntOrNull(formData.get("gl_per_occurrence_min")),
+    gl_aggregate_min: parseIntOrNull(formData.get("gl_aggregate_min")),
+    workers_comp_required: formData.get("workers_comp_required") === "true",
+    auto_required: formData.get("auto_required") === "true",
+    auto_min: parseIntOrNull(formData.get("auto_min")),
+    umbrella_required: formData.get("umbrella_required") === "true",
+    umbrella_min: parseIntOrNull(formData.get("umbrella_min")),
+    additional_insured_required:
+      formData.get("additional_insured_required") === "true",
+    waiver_of_subrogation_required:
+      formData.get("waiver_of_subrogation_required") === "true",
+  };
+
+  const result = await upsertCoverageRequirement(vendorType, values);
+  if (!result.ok) return result;
+
+  revalidateCoverageRulePaths();
+  return { ok: true, rereviewed: 0 };
+}
+
+function revalidateCoverageRulePaths() {
+  revalidatePath("/vendors/coverage-rules");
+  revalidatePath("/vendors");
+  revalidatePath("/dashboard");
 }
 
 async function triggerRereviews(vendorType: string): Promise<number> {

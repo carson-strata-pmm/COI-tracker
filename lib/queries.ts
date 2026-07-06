@@ -14,6 +14,7 @@ import { createAdminClient, hasAdminCredentials } from "@/lib/supabase-admin";
 import { getActiveOrgId } from "@/lib/auth";
 import { computeVendorStatus, latestCertificate } from "@/lib/status";
 import { FIXTURE_ORG, FIXTURE_VENDORS } from "@/lib/fixtures";
+import { VENDOR_TYPES, getVendorTypesForIndustry } from "@/lib/vendor-types";
 import type {
   Certificate,
   CoverageRequirement,
@@ -174,9 +175,12 @@ export async function recalculateVendorStatus(
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Returns all vendor types (from system defaults) merged with any
- * org-specific overrides. Each row reflects the currently active
- * values for that vendor type.
+ * Returns vendor types relevant to the org's industry (from system
+ * defaults), merged with any org-specific overrides. Also includes any
+ * vendor type the org has added itself (via "+ Add vendor type") that
+ * has no system default, and any vendor type the org has customized
+ * even if it falls outside their industry's default set — so nothing
+ * an org has already configured silently disappears.
  */
 export async function getResolvedRequirements(): Promise<ResolvedRequirement[]> {
   if (!isDbConfigured()) return [];
@@ -184,30 +188,69 @@ export async function getResolvedRequirements(): Promise<ResolvedRequirement[]> 
   const orgId = await getActiveOrgId();
   const db = createAdminClient();
 
-  const [{ data: defaults }, { data: overrides }] = await Promise.all([
-    db
-      .from("coverage_requirements")
-      .select("*")
-      .is("org_id", null)
-      .order("vendor_type"),
-    orgId
-      ? db
-          .from("coverage_requirements")
-          .select("*")
-          .eq("org_id", orgId)
-      : Promise.resolve({ data: [] }),
-  ]);
+  const [{ data: defaults }, { data: overrides }, { data: orgRow }] =
+    await Promise.all([
+      db
+        .from("coverage_requirements")
+        .select("*")
+        .is("org_id", null)
+        .order("vendor_type"),
+      orgId
+        ? db.from("coverage_requirements").select("*").eq("org_id", orgId)
+        : Promise.resolve({ data: [] }),
+      orgId
+        ? db
+            .from("organizations")
+            .select("industry_type")
+            .eq("id", orgId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
 
   const overrideMap = new Map(
     ((overrides ?? []) as CoverageRequirement[]).map((r) => [r.vendor_type, r])
   );
+  const relevantTypes = new Set(
+    getVendorTypesForIndustry(
+      (orgRow as { industry_type: string | null } | null)?.industry_type
+    )
+  );
+  const defaultRows = (defaults ?? []) as CoverageRequirement[];
 
-  return ((defaults ?? []) as CoverageRequirement[]).map((d) => {
+  const resolved: ResolvedRequirement[] = [];
+
+  for (const d of defaultRows) {
     const override = overrideMap.get(d.vendor_type);
-    return override
-      ? { ...(override as CoverageRequirement), hasCustomOverride: true }
-      : { ...d, hasCustomOverride: false };
+    if (!relevantTypes.has(d.vendor_type) && !override) continue;
+    resolved.push(
+      override
+        ? { ...(override as CoverageRequirement), hasCustomOverride: true, isCustomVendorType: false }
+        : { ...d, hasCustomOverride: false, isCustomVendorType: false }
+    );
+  }
+
+  const defaultTypes = new Set(defaultRows.map((d) => d.vendor_type));
+  Array.from(overrideMap.values()).forEach((override) => {
+    if (!defaultTypes.has(override.vendor_type)) {
+      resolved.push({ ...override, hasCustomOverride: true, isCustomVendorType: true });
+    }
   });
+
+  resolved.sort((a, b) => a.vendor_type.localeCompare(b.vendor_type));
+  return resolved;
+}
+
+/**
+ * Vendor type names available to the active org for the "Vendor type"
+ * picker when adding/editing a vendor — the same industry-filtered +
+ * custom list shown in Coverage Rules, so every selectable type has a
+ * visible, editable coverage rule. Falls back to the full static list
+ * in demo mode (no DB configured).
+ */
+export async function getVendorTypeOptions(): Promise<string[]> {
+  if (!isDbConfigured()) return [...VENDOR_TYPES];
+  const requirements = await getResolvedRequirements();
+  return requirements.map((r) => r.vendor_type);
 }
 
 /**

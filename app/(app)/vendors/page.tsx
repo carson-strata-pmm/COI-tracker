@@ -3,7 +3,7 @@ import { VendorTable } from "@/components/dashboard/VendorTable";
 import { AddVendorDialog } from "@/components/vendors/AddVendorDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { DbNotice } from "@/components/DbNotice";
-import { getVendorsWithCerts, isDbConfigured } from "@/lib/queries";
+import { getVendorsWithCerts, getVendorTypeOptions, isDbConfigured } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
 import { planConfig } from "@/lib/constants";
 
@@ -11,7 +11,10 @@ export const dynamic = "force-dynamic";
 
 export default async function VendorsPage() {
   const org = await requireActiveOrg();
-  const vendors = await getVendorsWithCerts();
+  const [vendors, vendorTypes] = await Promise.all([
+    getVendorsWithCerts(),
+    getVendorTypeOptions(),
+  ]);
   const plan = planConfig(org.plan);
 
   return (
@@ -25,7 +28,7 @@ export default async function VendorsPage() {
             .
           </p>
         </div>
-        {vendors.length > 0 && <AddVendorDialog />}
+        {vendors.length > 0 && <AddVendorDialog vendorTypes={vendorTypes} />}
       </div>
 
       {!isDbConfigured() && <DbNotice />}
@@ -35,7 +38,7 @@ export default async function VendorsPage() {
           icon={Users}
           title="No vendors yet"
           description="Add a vendor or subcontractor to start tracking their certificate of insurance."
-          action={<AddVendorDialog />}
+          action={<AddVendorDialog vendorTypes={vendorTypes} />}
         />
       ) : (
         <VendorTable vendors={vendors} showAiColumn={true} />

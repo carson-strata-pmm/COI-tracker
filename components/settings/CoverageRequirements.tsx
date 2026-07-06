@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil, RotateCcw, Check, X } from "lucide-react";
+import { Pencil, Plus, RotateCcw, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import {
   saveCoverageRequirement,
   resetCoverageRequirement,
+  addCoverageRequirement,
 } from "@/app/(app)/settings/actions";
 import type { ResolvedRequirement } from "@/lib/types";
 
@@ -26,6 +27,7 @@ export function CoverageRequirements({
   requirements: ResolvedRequirement[];
 }) {
   const [editing, setEditing] = useState<ResolvedRequirement | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -35,8 +37,15 @@ export function CoverageRequirements({
     setEditing(req);
   }
 
+  function openAdd() {
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    setAddingNew(true);
+  }
+
   function handleSaved(msg: string) {
     setEditing(null);
+    setAddingNew(false);
     setSuccessMsg(msg);
   }
 
@@ -117,7 +126,9 @@ export function CoverageRequirements({
                   <BoolCell value={req.waiver_of_subrogation_required} />
                 </td>
                 <td className="px-3 py-2 text-center">
-                  {req.hasCustomOverride ? (
+                  {req.isCustomVendorType ? (
+                    <Badge variant="default" className="text-xs">Added</Badge>
+                  ) : req.hasCustomOverride ? (
                     <Badge variant="default" className="text-xs">Custom</Badge>
                   ) : (
                     <Badge variant="secondary" className="text-xs">Default</Badge>
@@ -140,10 +151,23 @@ export function CoverageRequirements({
         </table>
       </div>
 
+      <Button variant="outline" size="sm" className="gap-1.5" onClick={openAdd}>
+        <Plus className="h-3.5 w-3.5" /> Add vendor type
+      </Button>
+
       {editing && (
         <EditModal
           req={editing}
           onClose={() => setEditing(null)}
+          onSaved={handleSaved}
+          onError={handleError}
+        />
+      )}
+
+      {addingNew && (
+        <AddModal
+          existingTypes={requirements.map((r) => r.vendor_type)}
+          onClose={() => setAddingNew(false)}
           onSaved={handleSaved}
           onError={handleError}
         />
@@ -205,11 +229,21 @@ function EditModal({
   }
 
   function handleReset() {
+    if (
+      req.isCustomVendorType &&
+      !window.confirm(
+        `Delete "${req.vendor_type}"? This removes it from Coverage Rules and the vendor-type picker.`
+      )
+    ) {
+      return;
+    }
+
     startTransition(async () => {
       const result = await resetCoverageRequirement(req.vendor_type);
       if (result.ok) {
-        const msg =
-          result.rereviewed > 0
+        const msg = req.isCustomVendorType
+          ? "Vendor type deleted."
+          : result.rereviewed > 0
             ? `Reset to default. ${result.rereviewed} certificate${result.rereviewed === 1 ? "" : "s"} re-reviewed.`
             : "Reset to default.";
         onSaved(msg);
@@ -302,7 +336,15 @@ function EditModal({
                 disabled={pending}
                 className="gap-1.5"
               >
-                <RotateCcw className="h-3.5 w-3.5" /> Reset to default
+                {req.isCustomVendorType ? (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" /> Delete vendor type
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-3.5 w-3.5" /> Reset to default
+                  </>
+                )}
               </Button>
             )}
             <div className="flex gap-2">
@@ -318,6 +360,162 @@ function EditModal({
                 {pending ? "Saving…" : "Save"}
               </Button>
             </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Add vendor type modal
+// ─────────────────────────────────────────────────────────────
+
+function AddModal({
+  existingTypes,
+  onClose,
+  onSaved,
+  onError,
+}: {
+  existingTypes: string[];
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+  onError: (msg: string) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [workers, setWorkers] = useState(false);
+  const [auto, setAuto] = useState(false);
+  const [umbrella, setUmbrella] = useState(false);
+  const [addIns, setAddIns] = useState(true);
+  const [waiver, setWaiver] = useState(false);
+
+  function handleSave(formData: FormData) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setNameError("Vendor type name is required.");
+      return;
+    }
+    if (existingTypes.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
+      setNameError(`"${trimmed}" already exists.`);
+      return;
+    }
+    setNameError(null);
+
+    formData.set("workers_comp_required", String(workers));
+    formData.set("auto_required", String(auto));
+    formData.set("umbrella_required", String(umbrella));
+    formData.set("additional_insured_required", String(addIns));
+    formData.set("waiver_of_subrogation_required", String(waiver));
+
+    startTransition(async () => {
+      const result = await addCoverageRequirement(trimmed, formData);
+      if (result.ok) {
+        onSaved(`Added "${trimmed}".`);
+      } else {
+        onError(result.error);
+        onClose();
+      }
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add vendor type</DialogTitle>
+          <DialogDescription>
+            Adds a new vendor type and coverage rule for your org only.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form action={handleSave} className="grid gap-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="new_vendor_type" className="text-xs">
+              Vendor type name
+            </Label>
+            <Input
+              id="new_vendor_type"
+              name="new_vendor_type"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Fire Suppression"
+              autoFocus
+            />
+            {nameError && (
+              <p className="text-xs text-destructive">{nameError}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <MoneyField
+              label="GL per occurrence"
+              name="gl_per_occurrence_min"
+              defaultValue={null}
+            />
+            <MoneyField
+              label="GL aggregate"
+              name="gl_aggregate_min"
+              defaultValue={null}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <ToggleField
+                label="Workers comp required"
+                checked={workers}
+                onChange={setWorkers}
+              />
+              <ToggleField
+                label="Auto required"
+                checked={auto}
+                onChange={setAuto}
+              />
+              <ToggleField
+                label="Umbrella required"
+                checked={umbrella}
+                onChange={setUmbrella}
+              />
+            </div>
+            <div className="space-y-3">
+              <ToggleField
+                label="Additional insured"
+                checked={addIns}
+                onChange={setAddIns}
+              />
+              <ToggleField
+                label="Waiver of subrogation"
+                checked={waiver}
+                onChange={setWaiver}
+              />
+            </div>
+          </div>
+
+          {auto && (
+            <MoneyField label="Auto minimum" name="auto_min" defaultValue={null} />
+          )}
+          {umbrella && (
+            <MoneyField
+              label="Umbrella minimum"
+              name="umbrella_min"
+              defaultValue={null}
+            />
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Adding…" : "Add vendor type"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

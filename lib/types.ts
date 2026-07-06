@@ -71,10 +71,12 @@ export interface CoverageRequirement {
   created_at: string;
 }
 
-// Merged view for the settings table — the resolved values plus a flag
-// indicating whether an org override is in effect.
+// Merged view for the settings table — the resolved values plus flags
+// indicating whether an org override is in effect, and whether this
+// vendor type exists only for this org (added via "+", no system default).
 export interface ResolvedRequirement extends CoverageRequirement {
   hasCustomOverride: boolean;
+  isCustomVendorType: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
