@@ -56,14 +56,24 @@ export async function POST(req: NextRequest) {
     customerId = (org as Organization)?.stripe_customer_id ?? undefined;
   }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
-    customer: customerId,
-    client_reference_id: orgId,
-    success_url: `${appUrl}/settings?upgraded=1`,
-    cancel_url: `${appUrl}/settings`,
-  });
-
-  return NextResponse.json({ url: session.url });
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      customer: customerId,
+      client_reference_id: orgId,
+      success_url: `${appUrl}/settings?upgraded=1`,
+      cancel_url: `${appUrl}/settings`,
+    });
+    return NextResponse.json({ url: session.url });
+  } catch (e) {
+    console.error("Stripe checkout session creation failed:", e);
+    return NextResponse.json(
+      {
+        error:
+          e instanceof Error ? e.message : "Could not start checkout.",
+      },
+      { status: 502 }
+    );
+  }
 }

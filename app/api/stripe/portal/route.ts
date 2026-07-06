@@ -38,10 +38,20 @@ export async function POST() {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const session = await getStripe().billingPortal.sessions.create({
-    customer: customerId,
-    return_url: `${appUrl}/settings`,
-  });
-
-  return NextResponse.json({ url: session.url });
+  try {
+    const session = await getStripe().billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${appUrl}/settings`,
+    });
+    return NextResponse.json({ url: session.url });
+  } catch (e) {
+    console.error("Stripe billing portal session creation failed:", e);
+    return NextResponse.json(
+      {
+        error:
+          e instanceof Error ? e.message : "Could not open billing portal.",
+      },
+      { status: 502 }
+    );
+  }
 }
