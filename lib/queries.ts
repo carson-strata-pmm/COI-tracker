@@ -24,6 +24,7 @@ import type {
   Vendor,
   VendorWithCert,
   AIReview,
+  VendorNotification,
 } from "@/lib/types";
 
 export function isDbConfigured(): boolean {
@@ -346,4 +347,26 @@ export async function countVendorsWithCerts(
     .in("vendor_id", vendorIds);
 
   return count ?? 0;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Vendor notifications
+// ─────────────────────────────────────────────────────────────
+
+/** Notification history for a vendor, most recent first. */
+export async function getVendorNotifications(
+  vendorId: string
+): Promise<VendorNotification[]> {
+  if (!isDbConfigured()) return [];
+  const orgId = await getActiveOrgId();
+  if (!orgId) return [];
+
+  const db = createAdminClient();
+  const { data } = await db
+    .from("vendor_notifications")
+    .select("*")
+    .eq("vendor_id", vendorId)
+    .eq("org_id", orgId)
+    .order("sent_at", { ascending: false });
+  return (data as VendorNotification[]) ?? [];
 }

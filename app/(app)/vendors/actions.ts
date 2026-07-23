@@ -9,8 +9,10 @@ import { planConfig, nextPlan, PAID_PLANS, type PlanConfig } from "@/lib/constan
 import { generateUploadToken } from "@/lib/upload-token";
 import { sendEmail, hasResend } from "@/lib/resend";
 import { sendSms, hasTwilio } from "@/lib/twilio";
-import { vendorUploadRequestEmail } from "@/lib/email-templates";
-import type { Certificate } from "@/lib/types";
+import { vendorUploadRequestEmail, issueNotificationEmail } from "@/lib/email-templates";
+import { issueNotificationSms } from "@/lib/sms-templates";
+import { getFailedChecks } from "@/lib/ai-review-format";
+import type { AIReview, Certificate, Organization, Vendor } from "@/lib/types";
 
 const vendorSchema = z.object({
   company_name: z.string().trim().min(1, "Company name is required"),
@@ -275,4 +277,108 @@ export async function updateCertificate(
   revalidatePath("/vendors");
   revalidatePath(`/vendors/${vendorId}`);
   return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notify vendor (AI review issues)
+// ─────────────────────────────────────────────────────────────
+
+export type NotifyVendorResult =
+  | { ok: true; emailed: boolean; texted: boolean; sentTo: string | null }
+  | { ok: false; error: string };
+
+/**
+ * Sends the vendor a plain-language summary of their AI review
+ * issues (email + SMS if a phone is on file), with a fresh upload
+ * link, and logs the send to vendor_notifications.
+ */
+export async function notifyVendor(
+  vendorId: string,
+  certId: string,
+  aiReviewId: string
+): Promise<NotifyVendorResult> {
+  if (!isDbConfigured()) {
+    return {
+      ok: false,
+      error: "Database not connected. Set Supabase credentials to enable notifications.",
+    };
+  }
+
+  const orgId = await getActiveOrgId();
+  if (!orgId) return { ok: false, error: "No active organization." };
+
+  const db = createAdminClient();
+
+  const [{ data: vendor }, { data: org }, { data: review }] = await Promise.all([
+    db.from("vendors").select("*").eq("id", vendorId).eq("org_id", orgId).single(),
+    db.from("organizations").select("*").eq("id", orgId).single(),
+    db.from("ai_reviews").select("*").eq("id", aiReviewId).eq("org_id", orgId).single(),
+  ]);
+
+  if (!vendor) return { ok: false, error: "Contractor not found" };
+  if (!org) return { ok: false, error: "Organization not found" };
+  if (!review) return { ok: false, error: "AI review not found" };
+
+  const v = vendor as Vendor;
+  const o = org as Organization;
+  const r = review as AIReview;
+
+  const failedChecks = getFailedChecks(r.report);
+  if (failedChecks.length === 0) {
+    return { ok: false, error: "No issues to send for this review." };
+  }
+
+  // Fresh single-use upload link, same as "Request COI".
+  const token = generateUploadToken();
+  const { data: uploadRequest, error: tokenError } = await db
+    .from("upload_requests")
+    .insert({ vendor_id: vendorId, org_id: orgId, token })
+    .select("id")
+    .single();
+  if (tokenError || !uploadRequest) {
+    return { ok: false, error: tokenError?.message ?? "Could not create upload link" };
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const uploadUrl = `${appUrl}/upload/${token}`;
+
+  const sentVia: ("email" | "sms")[] = [];
+
+  if (v.contact_email && hasResend()) {
+    const email = issueNotificationEmail({
+      vendorName: v.contact_name ?? v.company_name,
+      orgName: o.name,
+      issues: failedChecks,
+      uploadUrl,
+    });
+    await sendEmail({ to: v.contact_email, ...email });
+    sentVia.push("email");
+  }
+
+  if (v.contact_phone && hasTwilio()) {
+    const body = issueNotificationSms({
+      vendorName: v.contact_name ?? v.company_name,
+      orgName: o.name,
+      issueCount: failedChecks.length,
+      uploadUrl,
+    });
+    await sendSms({ to: v.contact_phone, body });
+    sentVia.push("sms");
+  }
+
+  await db.from("vendor_notifications").insert({
+    vendor_id: vendorId,
+    org_id: orgId,
+    cert_id: certId,
+    ai_review_id: aiReviewId,
+    upload_request_id: (uploadRequest as { id: string }).id,
+    issues_sent: failedChecks,
+    sent_via: sentVia,
+  });
+
+  revalidatePath(`/vendors/${vendorId}`);
+  revalidatePath("/vendors");
+  revalidatePath("/dashboard");
+
+  return { ok: true, emailed: sentVia.includes("email"), texted: sentVia.includes("sms"), sentTo: v.contact_email };
 }
