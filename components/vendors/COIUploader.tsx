@@ -114,9 +114,11 @@ export function COIUploader({
   }
 
   if (done) {
+    // Only reached by the public (non-review) contractor upload flow —
+    // the org-direct flow shows the parsed-fields form instead.
     return (
       <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-        Certificate uploaded and parsed. It now appears in the history below.
+        Certificate uploaded successfully. Thank you!
       </div>
     );
   }
@@ -178,7 +180,7 @@ export function COIUploader({
 
       {file && (
         <Button onClick={upload} disabled={pending} className="w-full">
-          {pending ? "Uploading & parsing…" : "Upload certificate"}
+          {pending ? "Uploading…" : "Upload certificate"}
         </Button>
       )}
     </div>
