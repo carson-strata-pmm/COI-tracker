@@ -21,7 +21,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Adding…" : "Add vendor"}
+      {pending ? "Adding…" : "Add contractor"}
     </Button>
   );
 }
@@ -57,7 +57,7 @@ function FirstUpgradePrompt({
   return (
     <div className="grid gap-4">
       <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm">
-        <p className="font-semibold text-green-800">Your first vendor is tracked!</p>
+        <p className="font-semibold text-green-800">Your first contractor is tracked!</p>
         <p className="mt-1 text-green-700">
           Ready to add more? Pick the plan that fits your business — no limits after that.
         </p>
@@ -73,7 +73,7 @@ function FirstUpgradePrompt({
               </span>
             </div>
             <p className="mt-1 flex-1 text-xs text-muted-foreground">
-              {p.vendorLimit === null ? "No vendor limit" : `Up to ${p.vendorLimit} vendors`}
+              {p.vendorLimit === null ? "No contractor limit" : `Up to ${p.vendorLimit} contractors`}
             </p>
             <Button
               size="sm"
@@ -143,8 +143,8 @@ function UpgradePrompt({
         <p className="mt-1 text-amber-800">
           Upgrade to <strong>{upgradePlan.name}</strong> (${upgradePlan.priceYearly}/yr) to track{" "}
           {upgradePlan.vendorLimit === null
-            ? "unlimited vendors"
-            : `up to ${upgradePlan.vendorLimit} vendors`}
+            ? "unlimited contractors"
+            : `up to ${upgradePlan.vendorLimit} contractors`}
           .
         </p>
       </div>
@@ -190,14 +190,14 @@ function SuccessStep({
       <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
         <Check className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
         <div className="text-sm">
-          <p className="font-medium text-green-800">Vendor added</p>
+          <p className="font-medium text-green-800">Contractor added</p>
           {sentVia.length > 0 ? (
             <p className="mt-0.5 text-green-700">
               Upload request sent via {sentVia.join(" and ")}.
             </p>
           ) : (
             <p className="mt-0.5 text-green-700">
-              Share the upload link below with your vendor.
+              Share the upload link below with your contractor.
             </p>
           )}
         </div>
@@ -262,17 +262,17 @@ export function AddVendorDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant={triggerVariant}>
-          <Plus className="h-4 w-4" /> Add vendor
+          <Plus className="h-4 w-4" /> Add contractor
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isFirstUpgrade ? "Nice — your first vendor is tracked!" : "Add a vendor"}
+            {isFirstUpgrade ? "Nice — your first contractor is tracked!" : "Add a contractor"}
           </DialogTitle>
           {!isFirstUpgrade && (
             <DialogDescription>
-              Add a vendor or subcontractor to track their certificate of
+              Add a contractor or subcontractor to track their certificate of
               insurance. We&apos;ll automatically send them an upload link.
             </DialogDescription>
           )}

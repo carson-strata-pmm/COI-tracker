@@ -21,9 +21,9 @@ export default async function VendorsPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Vendors</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Contractors</h1>
           <p className="text-sm text-muted-foreground">
-            {vendors.length} vendor{vendors.length === 1 ? "" : "s"}
+            {vendors.length} contractor{vendors.length === 1 ? "" : "s"}
             {plan.vendorLimit !== null && ` of ${plan.vendorLimit} on your plan`}
             .
           </p>
@@ -36,8 +36,8 @@ export default async function VendorsPage() {
       {vendors.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No vendors yet"
-          description="Add a vendor or subcontractor to start tracking their certificate of insurance."
+          title="No contractors yet"
+          description="Add a contractor or subcontractor to start tracking their certificate of insurance."
           action={<AddVendorDialog vendorTypes={vendorTypes} />}
         />
       ) : (

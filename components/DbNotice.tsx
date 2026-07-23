@@ -12,7 +12,7 @@ export function DbNotice() {
       <div>
         <p className="font-medium">Demo data — database not connected</p>
         <p className="text-amber-800">
-          You&apos;re viewing seeded sample vendors. Set{" "}
+          You&apos;re viewing seeded sample contractors. Set{" "}
           <code className="rounded bg-amber-100 px-1">
             NEXT_PUBLIC_SUPABASE_URL
           </code>{" "}

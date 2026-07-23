@@ -66,7 +66,7 @@ export function CoverageRequirements({
       <p className="text-sm text-muted-foreground">
         Pre-set to market-standard minimums. Adjust any row to match your
         contracts or broker&apos;s recommendations — changes take effect on the
-        next AI review for that vendor type.
+        next AI review for that contractor type.
       </p>
 
       {successMsg && (
@@ -84,7 +84,7 @@ export function CoverageRequirements({
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/40">
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Vendor type</th>
+              <th className="px-3 py-2 text-left font-medium">Contractor type</th>
               <th className="px-3 py-2 text-right font-medium">GL occ.</th>
               <th className="px-3 py-2 text-right font-medium">GL agg.</th>
               <th className="px-3 py-2 text-center font-medium">W.Comp</th>
@@ -152,7 +152,7 @@ export function CoverageRequirements({
       </div>
 
       <Button variant="outline" size="sm" className="gap-1.5" onClick={openAdd}>
-        <Plus className="h-3.5 w-3.5" /> Add vendor type
+        <Plus className="h-3.5 w-3.5" /> Add contractor type
       </Button>
 
       {editing && (
@@ -232,7 +232,7 @@ function EditModal({
     if (
       req.isCustomVendorType &&
       !window.confirm(
-        `Delete "${req.vendor_type}"? This removes it from Coverage Rules and the vendor-type picker.`
+        `Delete "${req.vendor_type}"? This removes it from Coverage Rules and the contractor-type picker.`
       )
     ) {
       return;
@@ -242,7 +242,7 @@ function EditModal({
       const result = await resetCoverageRequirement(req.vendor_type);
       if (result.ok) {
         const msg = req.isCustomVendorType
-          ? "Vendor type deleted."
+          ? "Contractor type deleted."
           : result.rereviewed > 0
             ? `Reset to default. ${result.rereviewed} certificate${result.rereviewed === 1 ? "" : "s"} re-reviewed.`
             : "Reset to default.";
@@ -261,7 +261,7 @@ function EditModal({
           <DialogTitle>Edit coverage rules — {req.vendor_type}</DialogTitle>
           <DialogDescription>
             Adjustments apply to your org only and take effect on the next AI
-            review for this vendor type.
+            review for this contractor type.
           </DialogDescription>
         </DialogHeader>
 
@@ -338,7 +338,7 @@ function EditModal({
               >
                 {req.isCustomVendorType ? (
                   <>
-                    <Trash2 className="h-3.5 w-3.5" /> Delete vendor type
+                    <Trash2 className="h-3.5 w-3.5" /> Delete contractor type
                   </>
                 ) : (
                   <>
@@ -368,7 +368,7 @@ function EditModal({
 }
 
 // ─────────────────────────────────────────────────────────────
-// Add vendor type modal
+// Add contractor type modal
 // ─────────────────────────────────────────────────────────────
 
 function AddModal({
@@ -394,7 +394,7 @@ function AddModal({
   function handleSave(formData: FormData) {
     const trimmed = name.trim();
     if (!trimmed) {
-      setNameError("Vendor type name is required.");
+      setNameError("Contractor type name is required.");
       return;
     }
     if (existingTypes.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
@@ -424,16 +424,16 @@ function AddModal({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add vendor type</DialogTitle>
+          <DialogTitle>Add contractor type</DialogTitle>
           <DialogDescription>
-            Adds a new vendor type and coverage rule for your org only.
+            Adds a new contractor type and coverage rule for your org only.
           </DialogDescription>
         </DialogHeader>
 
         <form action={handleSave} className="grid gap-4">
           <div className="grid gap-1.5">
             <Label htmlFor="new_vendor_type" className="text-xs">
-              Vendor type name
+              Contractor type name
             </Label>
             <Input
               id="new_vendor_type"
@@ -514,7 +514,7 @@ function AddModal({
               Cancel
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Adding…" : "Add vendor type"}
+              {pending ? "Adding…" : "Add contractor type"}
             </Button>
           </DialogFooter>
         </form>

@@ -16,7 +16,7 @@ export default function SignupPage() {
       <CardHeader>
         <CardTitle>Create your account</CardTitle>
         <CardDescription>
-          Start tracking vendor COIs in under two minutes.
+          Start tracking contractor COIs in under two minutes.
         </CardDescription>
       </CardHeader>
       <CardContent>

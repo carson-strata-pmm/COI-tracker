@@ -66,7 +66,7 @@ export function MobileNav() {
             )}
           >
             <Users className="h-4 w-4" />
-            Vendors
+            Contractors
           </Link>
 
           {vendorsActive && (
@@ -81,7 +81,7 @@ export function MobileNav() {
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
-                All Vendors
+                All Contractors
               </Link>
               <Link
                 href="/vendors/coverage-rules"

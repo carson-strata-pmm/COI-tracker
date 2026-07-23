@@ -53,7 +53,7 @@ export function EditVendorDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit vendor</DialogTitle>
+          <DialogTitle>Edit contractor</DialogTitle>
           <DialogDescription>
             Update contact details for {vendor.company_name}.
           </DialogDescription>

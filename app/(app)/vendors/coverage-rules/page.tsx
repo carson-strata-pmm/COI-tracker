@@ -15,7 +15,7 @@ export default async function CoverageRulesPage() {
           Coverage Rules
         </h1>
         <p className="text-sm text-muted-foreground">
-          Minimum insurance requirements by vendor type, checked during AI
+          Minimum insurance requirements by contractor type, checked during AI
           review. Defaults are market-standard; override any row to match your
           contracts.
         </p>

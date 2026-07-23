@@ -23,7 +23,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Compliance overview across all your vendors.
+            Compliance overview across all your contractors.
           </p>
         </div>
         {vendors.length > 0 && <AddVendorDialog vendorTypes={vendorTypes} />}
@@ -34,8 +34,8 @@ export default async function DashboardPage() {
       {vendors.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="Add your first vendor"
-          description="Start tracking certificates of insurance by adding a vendor or subcontractor."
+          title="Add your first contractor"
+          description="Start tracking certificates of insurance by adding a contractor or subcontractor."
           action={<AddVendorDialog vendorTypes={vendorTypes} />}
         />
       ) : (

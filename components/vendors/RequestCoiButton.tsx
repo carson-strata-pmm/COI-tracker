@@ -63,8 +63,8 @@ export function RequestCoiButton({
         </div>
         <span className="text-xs text-muted-foreground">
           {emailed
-            ? "Email sent to the vendor."
-            : "Link generated — share it with the vendor."}
+            ? "Email sent to the contractor."
+            : "Link generated — share it with the contractor."}
         </span>
       </div>
     );

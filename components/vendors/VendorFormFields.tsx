@@ -30,7 +30,7 @@ export function VendorFormFields({
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="vendor_type">Vendor type *</Label>
+        <Label htmlFor="vendor_type">Contractor type *</Label>
         <select
           id="vendor_type"
           name="vendor_type"
@@ -39,7 +39,7 @@ export function VendorFormFields({
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="" disabled>
-            Select a vendor type…
+            Select a contractor type…
           </option>
           {options.map((t) => (
             <option key={t} value={t}>

@@ -48,7 +48,7 @@ export default async function VendorDetailPage({
         href="/vendors"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to vendors
+        <ArrowLeft className="h-4 w-4" /> Back to contractors
       </Link>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -159,7 +159,7 @@ export default async function VendorDetailPage({
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No certificate on file. Upload one or request it from the
-                  vendor.
+                  contractor.
                 </p>
               )}
             </CardContent>

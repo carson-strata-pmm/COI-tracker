@@ -38,7 +38,7 @@ export function vendorUploadRequestEmail(args: {
   const html = layout(
     "Certificate of insurance requested",
     `<p style="margin:0 0 12px;color:#334155">Hi ${args.vendorName},</p>
-     <p style="margin:0 0 20px;color:#334155"><strong>${args.orgName}</strong> uses CertTrack to keep vendor insurance certificates up to date and has requested a current COI from you. No account is required — just upload your PDF.</p>
+     <p style="margin:0 0 20px;color:#334155"><strong>${args.orgName}</strong> uses CertTrack to keep contractor insurance certificates up to date and has requested a current COI from you. No account is required — just upload your PDF.</p>
      <p style="margin:0 0 24px">${button(args.uploadUrl, "Upload your COI")}</p>
      <p style="margin:0;color:#64748b;font-size:13px">This secure link expires in 30 days. If the button doesn't work, paste this URL into your browser:<br>${args.uploadUrl}</p>`
   );

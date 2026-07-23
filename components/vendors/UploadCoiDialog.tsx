@@ -26,7 +26,7 @@ export function UploadCoiDialog({ vendorId }: { vendorId: string }) {
         <DialogHeader>
           <DialogTitle>Upload a certificate</DialogTitle>
           <DialogDescription>
-            Drop the vendor&apos;s COI PDF. We&apos;ll parse the key fields so
+            Drop the contractor&apos;s COI PDF. We&apos;ll parse the key fields so
             you can review them, then update their compliance status.
           </DialogDescription>
         </DialogHeader>

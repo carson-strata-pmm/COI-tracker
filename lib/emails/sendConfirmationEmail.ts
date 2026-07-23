@@ -111,11 +111,11 @@ const CONFIRMATION_TEMPLATE = `<!DOCTYPE html>
     </div>
     <div class="body">
       <h1>Confirm your email to get started</h1>
-      <p>You're one step away from tracking your vendor certificates automatically. Click the button below to confirm your email and finish setting up your account.</p>
+      <p>You're one step away from tracking your contractor certificates automatically. Click the button below to confirm your email and finish setting up your account.</p>
       <div class="btn-wrap">
         <a href="CONFIRMATION_URL_PLACEHOLDER" class="btn">Confirm my email</a>
       </div>
-      <p>Once confirmed, you'll be able to add your first vendor and send a COI request in under two minutes.</p>
+      <p>Once confirmed, you'll be able to add your first contractor and send a COI request in under two minutes.</p>
       <hr class="divider" />
       <p class="fallback">Button not working? Copy and paste this link into your browser:<br />
         <a href="CONFIRMATION_URL_PLACEHOLDER">CONFIRMATION_URL_PLACEHOLDER</a>

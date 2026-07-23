@@ -54,7 +54,7 @@ export function DeleteVendorButton({
         <DialogHeader>
           <DialogTitle>Delete {vendorName}?</DialogTitle>
           <DialogDescription>
-            This permanently removes the vendor and all of their certificates.
+            This permanently removes the contractor and all of their certificates.
             This cannot be undone.
           </DialogDescription>
         </DialogHeader>
@@ -72,7 +72,7 @@ export function DeleteVendorButton({
             onClick={onConfirm}
             disabled={pending}
           >
-            {pending ? "Deleting…" : "Delete vendor"}
+            {pending ? "Deleting…" : "Delete contractor"}
           </Button>
         </DialogFooter>
       </DialogContent>

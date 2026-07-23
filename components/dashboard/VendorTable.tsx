@@ -85,7 +85,7 @@ export function VendorTable({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search vendors…"
+            placeholder="Search contractors…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9"
@@ -118,7 +118,7 @@ export function VendorTable({
                   className="flex items-center gap-1"
                   onClick={() => toggleSort("company_name")}
                 >
-                  Vendor <ArrowUpDown className="h-3 w-3" />
+                  Contractor <ArrowUpDown className="h-3 w-3" />
                 </button>
               </TableHead>
               <TableHead>
@@ -148,7 +148,7 @@ export function VendorTable({
                   colSpan={showAiColumn ? 5 : 4}
                   className="py-8 text-center text-muted-foreground"
                 >
-                  No vendors match your filters.
+                  No contractors match your filters.
                 </TableCell>
               </TableRow>
             )}

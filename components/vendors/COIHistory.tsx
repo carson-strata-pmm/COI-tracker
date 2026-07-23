@@ -19,7 +19,7 @@ export function COIHistory({ certs }: { certs: Certificate[] }) {
       <EmptyState
         icon={FileText}
         title="No certificates on file"
-        description="Upload a COI directly, or send the vendor an upload request."
+        description="Upload a COI directly, or send the contractor an upload request."
       />
     );
   }

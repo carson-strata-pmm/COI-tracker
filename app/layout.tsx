@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "CertTrack — COI Compliance Tracking",
   description:
-    "Track certificates of insurance from your vendors. Automated expiration tracking, upload requests, and AI gap analysis.",
+    "Track certificates of insurance from your contractors. Automated expiration tracking, upload requests, and AI gap analysis.",
 };
 
 export default function RootLayout({

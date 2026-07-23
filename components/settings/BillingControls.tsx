@@ -84,8 +84,8 @@ export function BillingControls({ currentPlan }: { currentPlan: Plan }) {
               </div>
               <p className="mt-2 flex-1 text-xs text-muted-foreground">
                 {p.vendorLimit === null
-                  ? "Unlimited vendors"
-                  : `Up to ${p.vendorLimit} vendors`}
+                  ? "Unlimited contractors"
+                  : `Up to ${p.vendorLimit} contractors`}
               </p>
               <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                 <li className="flex items-center gap-1.5">
