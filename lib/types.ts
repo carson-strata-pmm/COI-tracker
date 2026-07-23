@@ -1,4 +1,5 @@
 import type { Plan, VendorStatus } from "@/lib/constants";
+import type { FormattedCheck } from "@/lib/ai-review-format";
 
 export interface Organization {
   id: string;
@@ -134,6 +135,18 @@ export interface ReminderLog {
   vendor_id: string;
   cert_id: string | null;
   type: "45d" | "14d" | "expired" | "escalation";
+  sent_at: string;
+}
+
+export interface VendorNotification {
+  id: string;
+  vendor_id: string;
+  org_id: string;
+  cert_id: string | null;
+  ai_review_id: string | null;
+  upload_request_id: string | null;
+  issues_sent: FormattedCheck[] | null;
+  sent_via: ("email" | "sms")[];
   sent_at: string;
 }
 
