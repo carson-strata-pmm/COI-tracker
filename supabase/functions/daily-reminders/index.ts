@@ -119,24 +119,43 @@ Deno.serve(async () => {
   });
 });
 
+// Mirrors lib/status.ts's resolveVendorStatus in the main app — kept
+// as a duplicate here since this Deno function can't import local TS
+// modules. Keep the two in sync if the status rules change.
 async function recalcAllStatuses(supabase: ReturnType<typeof createClient>) {
   const { data: vendors } = await supabase.from("vendors").select("id");
   const now = new Date();
   for (const v of vendors ?? []) {
     const { data: certs } = await supabase
       .from("certificates")
-      .select("expiration_date")
+      .select("id, expiration_date, uploaded_at")
       .eq("vendor_id", v.id);
+
     let status = "missing";
-    if (certs && certs.length > 0) {
-      const exps = certs
-        .map((c) => c.expiration_date)
-        .filter(Boolean)
-        .sort()
-        .reverse();
-      if (exps.length > 0) {
+    const certList = certs ?? [];
+    if (certList.length > 0) {
+      const latest = [...certList].sort((a, b) => {
+        const ax = a.expiration_date ? new Date(a.expiration_date).getTime() : -Infinity;
+        const bx = b.expiration_date ? new Date(b.expiration_date).getTime() : -Infinity;
+        if (ax !== bx) return bx - ax;
+        return new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime();
+      })[0];
+
+      const { data: review } = await supabase
+        .from("ai_reviews")
+        .select("status, issues_found, cert_id")
+        .eq("cert_id", latest.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!review || review.status === "pending") {
+        status = "pending_review";
+      } else if (review.status === "complete" && review.issues_found > 0) {
+        status = "action_needed";
+      } else if (latest.expiration_date) {
         const days = Math.ceil(
-          (new Date(exps[0]).getTime() - now.getTime()) / 86400000
+          (new Date(latest.expiration_date).getTime() - now.getTime()) / 86400000
         );
         status = days < 0 ? "expired" : days <= 45 ? "expiring_soon" : "compliant";
       }

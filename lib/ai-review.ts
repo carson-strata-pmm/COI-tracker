@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase-admin";
+import { recalculateVendorStatus } from "@/lib/queries";
 import { runComplianceReview, hasAnthropic } from "@/lib/anthropic";
 import type { Certificate, CoverageRequirement, Organization, Vendor } from "@/lib/types";
 
@@ -58,6 +59,11 @@ export async function triggerAiReview(args: {
       })
       .eq("id", pending?.id);
 
+    // Vendor status was set to "pending_review" when the cert was
+    // ingested — now that the review has an outcome, refresh it so
+    // the dashboard reflects any issues instead of a stale status.
+    await recalculateVendorStatus(args.vendor.id);
+
     return report.issues_found;
   } catch (e) {
     console.error("AI review failed:", e);
@@ -67,6 +73,7 @@ export async function triggerAiReview(args: {
         .update({ status: "error" })
         .eq("id", pending.id);
     }
+    await recalculateVendorStatus(args.vendor.id);
     return null;
   }
 }

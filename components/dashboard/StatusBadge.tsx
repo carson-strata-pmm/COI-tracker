@@ -4,12 +4,14 @@ import type { VendorStatus } from "@/lib/constants";
 
 const VARIANT: Record<
   VendorStatus,
-  "success" | "warning" | "danger" | "muted"
+  "success" | "warning" | "danger" | "muted" | "outline"
 > = {
   compliant: "success",
   expiring_soon: "warning",
   expired: "danger",
   missing: "muted",
+  pending_review: "outline",
+  action_needed: "danger",
 };
 
 export function StatusBadge({ status }: { status: VendorStatus }) {

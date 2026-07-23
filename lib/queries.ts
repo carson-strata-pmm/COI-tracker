@@ -12,7 +12,8 @@ import "server-only";
 
 import { createAdminClient, hasAdminCredentials } from "@/lib/supabase-admin";
 import { getActiveOrgId } from "@/lib/auth";
-import { computeVendorStatus, latestCertificate } from "@/lib/status";
+import { resolveVendorStatus, latestCertificate } from "@/lib/status";
+import { hasAnthropic } from "@/lib/anthropic";
 import { FIXTURE_ORG, FIXTURE_VENDORS } from "@/lib/fixtures";
 import { VENDOR_TYPES, getVendorTypesForIndustry } from "@/lib/vendor-types";
 import type {
@@ -154,8 +155,11 @@ export async function getAIReviewForCert(
 }
 
 /**
- * Recompute and persist a vendor's status from its certificates.
- * Called after every cert insert/update and by the daily cron.
+ * Recompute and persist a vendor's status from its certificates and
+ * (when AI review is enabled) the latest cert's review outcome.
+ * Called on cert insert, on AI review completion/error, and by the
+ * daily cron — so the badge never shows "Compliant" ahead of a
+ * pending review, and reflects any issues the review found.
  */
 export async function recalculateVendorStatus(
   vendorId: string
@@ -166,7 +170,26 @@ export async function recalculateVendorStatus(
     .from("certificates")
     .select("*")
     .eq("vendor_id", vendorId);
-  const status = computeVendorStatus((certs as Certificate[]) ?? []);
+  const certList = (certs as Certificate[]) ?? [];
+
+  const latest = latestCertificate(certList);
+  let latestReview: Pick<AIReview, "cert_id" | "status" | "issues_found"> | null = null;
+  if (latest) {
+    const { data: review } = await db
+      .from("ai_reviews")
+      .select("cert_id, status, issues_found")
+      .eq("cert_id", latest.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    latestReview = review ?? null;
+  }
+
+  const status = resolveVendorStatus({
+    certs: certList,
+    latestReview,
+    aiReviewEnabled: hasAnthropic(),
+  });
   await db.from("vendors").update({ status }).eq("id", vendorId);
 }
 

@@ -1,6 +1,6 @@
 import { differenceInCalendarDays } from "date-fns";
 import { EXPIRING_SOON_DAYS, type VendorStatus } from "@/lib/constants";
-import type { Certificate } from "@/lib/types";
+import type { AIReview, Certificate } from "@/lib/types";
 
 /**
  * Days until a date (negative if in the past), relative to `from`.
@@ -10,26 +10,49 @@ export function daysUntil(date: string | Date, from: Date = new Date()): number 
 }
 
 /**
- * Vendor status logic (see brief — recalculated on every cert
- * insert/update and on the daily cron):
+ * Vendor status logic (recalculated on cert insert, on AI review
+ * completion, and on the daily cron):
  *
- *   compliant     — latest cert expires more than 45 days from today
- *   expiring_soon — latest cert expires between today and 45 days out
- *   expired       — latest cert's expiration is in the past
- *   missing       — no cert on file at all
+ *   pending_review — latest cert's AI review hasn't finished yet
+ *   action_needed  — AI review completed and found one or more issues
+ *   compliant      — review clean (or AI disabled) and cert expires
+ *                    more than 45 days out
+ *   expiring_soon  — expires within 45 days
+ *   expired        — expiration is in the past
+ *   missing        — no cert on file at all
  *
  * `certs` may be passed in any order; the most recent by
- * expiration_date (falling back to uploaded_at) is used.
+ * expiration_date (falling back to uploaded_at) is used. The AI
+ * review branch only applies when `aiReviewEnabled` is true and
+ * `latestReview` is for that same latest cert — this keeps the
+ * function pure (no server-only imports) so client components can
+ * still import STATUS_LABELS/STATUS_ORDER from this module.
  */
-export function computeVendorStatus(
-  certs: Certificate[],
-  now: Date = new Date()
-): VendorStatus {
+export function resolveVendorStatus(args: {
+  certs: Certificate[];
+  latestReview?: Pick<AIReview, "cert_id" | "status" | "issues_found"> | null;
+  aiReviewEnabled?: boolean;
+  now?: Date;
+}): VendorStatus {
+  const { certs, latestReview = null, aiReviewEnabled = false, now = new Date() } = args;
   if (!certs || certs.length === 0) return "missing";
 
   const latest = latestCertificate(certs);
-  if (!latest || !latest.expiration_date) return "missing";
+  if (!latest) return "missing";
 
+  if (aiReviewEnabled) {
+    const reviewForLatest =
+      latestReview && latestReview.cert_id === latest.id ? latestReview : null;
+    if (!reviewForLatest || reviewForLatest.status === "pending") {
+      return "pending_review";
+    }
+    if (reviewForLatest.status === "complete" && reviewForLatest.issues_found > 0) {
+      return "action_needed";
+    }
+    // status === "error" falls through to date-based status below.
+  }
+
+  if (!latest.expiration_date) return "missing";
   const days = daysUntil(latest.expiration_date, now);
   if (days < 0) return "expired";
   if (days <= EXPIRING_SOON_DAYS) return "expiring_soon";
@@ -58,10 +81,14 @@ export const STATUS_LABELS: Record<VendorStatus, string> = {
   expiring_soon: "Expiring Soon",
   expired: "Expired",
   missing: "Missing",
+  pending_review: "Pending Review",
+  action_needed: "Action Needed",
 };
 
 export const STATUS_ORDER: VendorStatus[] = [
+  "action_needed",
   "expired",
+  "pending_review",
   "missing",
   "expiring_soon",
   "compliant",

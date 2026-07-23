@@ -76,7 +76,9 @@ export type VendorStatus =
   | "compliant"
   | "expiring_soon"
   | "expired"
-  | "missing";
+  | "missing"
+  | "pending_review"
+  | "action_needed";
 
 export const EXPIRING_SOON_DAYS = 45;
 
