@@ -91,6 +91,7 @@ Return null for any field you cannot find. Return only JSON, no other text.`;
 
 export interface AiReviewInput {
   vendor_type: string | null;
+  vendor_type_notes: string | null;
   org_name: string;
   vendor_company_name: string | null;
   named_insured: string | null;
@@ -138,9 +139,14 @@ function buildReviewPrompt(input: AiReviewInput): string {
 - Waiver of subrogation: ${req.waiver_of_subrogation_required ? "Required" : "Not required"}`
     : `No specific requirements on file for this vendor type — apply general best-practice minimums ($1M GL per occurrence, $2M aggregate).`;
 
+  const vendorTypeLine =
+    input.vendor_type === "Other" && input.vendor_type_notes
+      ? `Vendor type: Other (described as: "${input.vendor_type_notes}")`
+      : `Vendor type: ${input.vendor_type ?? "unknown"}`;
+
   return `You are a COI compliance assistant. Review the following certificate of insurance against the specific requirements for this vendor type and return a structured JSON report.
 
-Vendor type: ${input.vendor_type ?? "unknown"}
+${vendorTypeLine}
 Business name: ${input.org_name}
 
 ${requirementsSection}

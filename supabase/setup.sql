@@ -476,3 +476,9 @@ create policy "org members manage their vendor notifications"
   on vendor_notifications for all
   using (org_id = auth_org_id())
   with check (org_id = auth_org_id());
+
+-- ─────────────────────────────────────────────────────────────
+-- Migration 0010 — Vendor type notes ("Other" free text)
+-- ─────────────────────────────────────────────────────────────
+
+alter table vendors add column if not exists vendor_type_notes text;

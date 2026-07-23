@@ -29,10 +29,23 @@ export const VENDOR_TYPES = [
 
 export type VendorType = (typeof VENDOR_TYPES)[number];
 
+/**
+ * Sorts vendor type names alphabetically, with "Other" always pinned
+ * last regardless of where it'd otherwise sort. Used for the vendor
+ * type picker and any other full-list display.
+ */
+export function sortVendorTypesWithOtherLast(types: string[]): string[] {
+  const rest = types.filter((t) => t !== "Other").sort((a, b) => a.localeCompare(b));
+  return types.includes("Other") ? [...rest, "Other"] : rest;
+}
+
 // Which of the vendor types above belong to each industry category —
 // a clean partition of all 22 types, each appearing in exactly one
-// category. Narrows the Coverage Rules list and the vendor-type
-// picker to what an org of that category actually deals with.
+// category. Narrows the Coverage Rules list to what an org of that
+// category actually deals with (the vendor-type picker on Add/Edit
+// Vendor intentionally shows the full list — see getVendorTypeOptions
+// in lib/queries.ts — so nothing blocks adding a legitimate vendor
+// outside the org's primary industry).
 export const INDUSTRY_VENDOR_TYPES: Record<IndustryType, readonly VendorType[]> = {
   construction_trades: [
     "General Contractor",

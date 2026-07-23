@@ -15,7 +15,11 @@ import { getActiveOrgId } from "@/lib/auth";
 import { resolveVendorStatus, latestCertificate } from "@/lib/status";
 import { hasAnthropic } from "@/lib/anthropic";
 import { FIXTURE_ORG, FIXTURE_VENDORS } from "@/lib/fixtures";
-import { VENDOR_TYPES, getVendorTypesForIndustry } from "@/lib/vendor-types";
+import {
+  VENDOR_TYPES,
+  getVendorTypesForIndustry,
+  sortVendorTypesWithOtherLast,
+} from "@/lib/vendor-types";
 import type {
   Certificate,
   CoverageRequirement,
@@ -266,15 +270,30 @@ export async function getResolvedRequirements(): Promise<ResolvedRequirement[]> 
 
 /**
  * Vendor type names available to the active org for the "Vendor type"
- * picker when adding/editing a vendor — the same industry-filtered +
- * custom list shown in Coverage Rules, so every selectable type has a
- * visible, editable coverage rule. Falls back to the full static list
- * in demo mode (no DB configured).
+ * picker when adding/editing a vendor. Deliberately the FULL system
+ * default list — not filtered by industry the way Coverage Rules is —
+ * plus any org-added custom types, so nothing blocks adding a
+ * legitimate vendor outside the org's primary industry. "Other" is
+ * always sorted last. Falls back to the full static list in demo mode
+ * (no DB configured).
  */
 export async function getVendorTypeOptions(): Promise<string[]> {
-  if (!isDbConfigured()) return [...VENDOR_TYPES];
-  const requirements = await getResolvedRequirements();
-  return requirements.map((r) => r.vendor_type);
+  if (!isDbConfigured()) return sortVendorTypesWithOtherLast([...VENDOR_TYPES]);
+
+  const db = createAdminClient();
+  const orgId = await getActiveOrgId();
+
+  const [{ data: defaults }, { data: overrides }] = await Promise.all([
+    db.from("coverage_requirements").select("vendor_type").is("org_id", null),
+    orgId
+      ? db.from("coverage_requirements").select("vendor_type").eq("org_id", orgId)
+      : Promise.resolve({ data: [] as { vendor_type: string }[] }),
+  ]);
+
+  const types = new Set((defaults ?? []).map((d) => d.vendor_type));
+  for (const o of overrides ?? []) types.add(o.vendor_type);
+
+  return sortVendorTypesWithOtherLast(Array.from(types));
 }
 
 /**

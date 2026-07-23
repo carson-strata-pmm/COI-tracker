@@ -39,6 +39,7 @@ export async function triggerAiReview(args: {
 
     const report = await runComplianceReview({
       vendor_type: args.vendor.vendor_type,
+      vendor_type_notes: args.vendor.vendor_type_notes,
       org_name: args.org.name,
       vendor_company_name: args.vendor.company_name,
       named_insured: args.cert.named_insured,

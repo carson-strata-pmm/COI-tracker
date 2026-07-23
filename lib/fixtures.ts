@@ -35,6 +35,7 @@ export const FIXTURE_VENDORS: VendorWithCert[] = [
     contact_email: "dana@brightspark.example",
     contact_phone: null,
     vendor_type: "electrical",
+    vendor_type_notes: null,
     status: "compliant",
     created_at: isoDaysFromNow(-150),
     latest_certificate: {
@@ -70,6 +71,7 @@ export const FIXTURE_VENDORS: VendorWithCert[] = [
     contact_email: "marco@summitroof.example",
     contact_phone: null,
     vendor_type: "roofing",
+    vendor_type_notes: null,
     status: "expiring_soon",
     created_at: isoDaysFromNow(-140),
     latest_certificate: {
@@ -104,6 +106,7 @@ export const FIXTURE_VENDORS: VendorWithCert[] = [
     contact_email: "priya@clearview.example",
     contact_phone: null,
     vendor_type: "glazing",
+    vendor_type_notes: null,
     status: "expired",
     created_at: isoDaysFromNow(-130),
     latest_certificate: {
@@ -164,6 +167,7 @@ export const FIXTURE_VENDORS: VendorWithCert[] = [
     contact_email: "sam@ironoak.example",
     contact_phone: null,
     vendor_type: "framing",
+    vendor_type_notes: null,
     status: "missing",
     created_at: isoDaysFromNow(-10),
     latest_certificate: null,

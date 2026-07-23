@@ -25,6 +25,12 @@ const vendorSchema = z.object({
     .or(z.literal("")),
   contact_phone: z.string().trim().optional().or(z.literal("")),
   vendor_type: z.string().trim().optional().or(z.literal("")),
+  vendor_type_notes: z
+    .string()
+    .trim()
+    .max(100, "Keep it under 100 characters")
+    .optional()
+    .or(z.literal("")),
 });
 
 export type ActionResult =
@@ -56,6 +62,7 @@ export async function createVendor(
     contact_email: formData.get("contact_email"),
     contact_phone: formData.get("contact_phone"),
     vendor_type: formData.get("vendor_type"),
+    vendor_type_notes: formData.get("vendor_type_notes"),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
@@ -99,6 +106,8 @@ export async function createVendor(
       contact_email: parsed.data.contact_email || null,
       contact_phone: parsed.data.contact_phone || null,
       vendor_type: parsed.data.vendor_type || null,
+      vendor_type_notes:
+        parsed.data.vendor_type === "Other" ? parsed.data.vendor_type_notes || null : null,
       status: "missing",
     })
     .select("id")
@@ -157,6 +166,7 @@ export async function updateVendor(
     contact_name: formData.get("contact_name"),
     contact_email: formData.get("contact_email"),
     vendor_type: formData.get("vendor_type"),
+    vendor_type_notes: formData.get("vendor_type_notes"),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
@@ -172,6 +182,8 @@ export async function updateVendor(
       contact_name: parsed.data.contact_name || null,
       contact_email: parsed.data.contact_email || null,
       vendor_type: parsed.data.vendor_type || null,
+      vendor_type_notes:
+        parsed.data.vendor_type === "Other" ? parsed.data.vendor_type_notes || null : null,
     })
     .eq("id", id)
     .eq("org_id", orgId);
