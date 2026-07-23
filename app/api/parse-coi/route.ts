@@ -116,16 +116,20 @@ export async function POST(req: NextRequest) {
 
   // AI review runs on every cert upload for all plans.
   let issuesSummary: string | null = null;
+  let reviewClean: boolean | null = null;
   {
     const issues = await triggerAiReview({
       cert: result.certificate,
       vendor,
       org,
     });
-    if (issues && issues > 0) {
-      issuesSummary = `AI review flagged ${issues} potential issue${
-        issues === 1 ? "" : "s"
-      }.`;
+    if (issues !== null) {
+      reviewClean = issues === 0;
+      if (issues > 0) {
+        issuesSummary = `AI review flagged ${issues} potential issue${
+          issues === 1 ? "" : "s"
+        }.`;
+      }
     }
   }
 
@@ -139,10 +143,25 @@ export async function POST(req: NextRequest) {
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
+
+    // Did this upload come from a "Notify vendor" link (a fix), or a
+    // regular request/first submission?
+    let isResubmit = false;
+    if (requestId) {
+      const { data: notification } = await db
+        .from("vendor_notifications")
+        .select("id")
+        .eq("upload_request_id", requestId)
+        .maybeSingle();
+      isResubmit = Boolean(notification);
+    }
+
     if (owner?.email) {
       const email = coiReceivedEmail({
         vendorName: vendor.company_name,
         issuesSummary,
+        clean: reviewClean === true,
+        isResubmit,
         vendorUrl: `${appUrl}/vendors/${vendor.id}`,
       });
       await sendEmail({ to: owner.email, ...email });
