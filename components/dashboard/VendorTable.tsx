@@ -23,8 +23,10 @@ import {
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { AIReviewBadge } from "@/components/dashboard/AIReviewBadge";
 import { RequestCoiButton } from "@/components/vendors/RequestCoiButton";
+import { NotifyVendorButton } from "@/components/vendors/NotifyVendorButton";
 import { STATUS_LABELS, STATUS_ORDER } from "@/lib/status";
 import { formatDate } from "@/lib/format";
+import { getFailedChecks } from "@/lib/ai-review-format";
 import type { VendorStatus } from "@/lib/constants";
 import type { VendorWithCert } from "@/lib/types";
 
@@ -175,10 +177,25 @@ export function VendorTable({
                 </TableCell>
                 {showAiColumn && (
                   <TableCell>
-                    <AIReviewBadge
-                      review={v.latest_ai_review}
-                      hasCert={Boolean(v.latest_certificate)}
-                    />
+                    <div className="flex items-center gap-2">
+                      <AIReviewBadge
+                        review={v.latest_ai_review}
+                        hasCert={Boolean(v.latest_certificate)}
+                      />
+                      {v.latest_ai_review?.status === "complete" &&
+                        v.latest_ai_review.issues_found > 0 &&
+                        v.latest_certificate && (
+                          <NotifyVendorButton
+                            vendorId={v.id}
+                            vendorName={v.contact_name ?? v.company_name}
+                            certId={v.latest_certificate.id}
+                            aiReviewId={v.latest_ai_review.id}
+                            issues={getFailedChecks(v.latest_ai_review.report)}
+                            variant="link"
+                            label="Notify vendor"
+                          />
+                        )}
+                    </div>
                   </TableCell>
                 )}
                 <TableCell className="text-right">

@@ -10,6 +10,7 @@ import {
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { COIHistory } from "@/components/vendors/COIHistory";
 import { AIReportCard } from "@/components/vendors/AIReportCard";
+import { NotificationHistory } from "@/components/vendors/NotificationHistory";
 import { EditVendorDialog } from "@/components/vendors/EditVendorDialog";
 import { DeleteVendorButton } from "@/components/vendors/DeleteVendorButton";
 import { UploadCoiDialog } from "@/components/vendors/UploadCoiDialog";
@@ -20,6 +21,7 @@ import {
   getVendorCertificates,
   getAIReviewForCert,
   getVendorTypeOptions,
+  getVendorNotifications,
   isDbConfigured,
 } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
@@ -32,10 +34,11 @@ export default async function VendorDetailPage({
   params: { id: string };
 }) {
   await requireActiveOrg();
-  const [vendor, certs, vendorTypes] = await Promise.all([
+  const [vendor, certs, vendorTypes, notifications] = await Promise.all([
     getVendor(params.id),
     getVendorCertificates(params.id),
     getVendorTypeOptions(),
+    getVendorNotifications(params.id),
   ]);
   if (!vendor) notFound();
 
@@ -189,7 +192,10 @@ export default async function VendorDetailPage({
             </CardContent>
           </Card>
 
-          <AIReportCard review={review} />
+          <div className="space-y-3">
+            <AIReportCard review={review} vendor={vendor} />
+            <NotificationHistory vendor={vendor} notifications={notifications} />
+          </div>
         </div>
       </div>
     </div>
