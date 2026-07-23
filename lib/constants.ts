@@ -62,13 +62,6 @@ export function planConfig(plan: string | null | undefined): PlanConfig {
   return PLANS[(plan as Plan) ?? "free"] ?? PLANS.free;
 }
 
-/** The next tier up from the given plan, or null if already at the top. */
-export function nextPlan(plan: Plan): PlanConfig | null {
-  const idx = PLAN_ORDER.indexOf(plan);
-  if (idx === -1 || idx === PLAN_ORDER.length - 1) return null;
-  return PLANS[PLAN_ORDER[idx + 1]];
-}
-
 // ─────────────────────────────────────────────────────────────
 // Vendor status
 // ─────────────────────────────────────────────────────────────

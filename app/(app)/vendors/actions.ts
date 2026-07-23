@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { isDbConfigured, recalculateVendorStatus } from "@/lib/queries";
 import { getActiveOrgId, getActiveOrg } from "@/lib/auth";
-import { planConfig, nextPlan, PAID_PLANS, type PlanConfig } from "@/lib/constants";
+import { planConfig } from "@/lib/constants";
 import { generateUploadToken } from "@/lib/upload-token";
 import { sendEmail, hasResend } from "@/lib/resend";
 import { sendSms, hasTwilio } from "@/lib/twilio";
@@ -35,7 +35,7 @@ const vendorSchema = z.object({
 
 export type ActionResult =
   | { ok: true; uploadUrl?: string; emailed?: boolean; texted?: boolean }
-  | { ok: false; error: string; upgradePlan?: PlanConfig; upgradePlans?: PlanConfig[]; isFirstUpgrade?: boolean };
+  | { ok: false; error: string; atLimit?: boolean };
 
 function notConfigured(): ActionResult {
   return {
@@ -72,7 +72,9 @@ export async function createVendor(
   if (!org) return NO_ORG;
   const db = createAdminClient();
 
-  // Enforce the plan's vendor limit on insert.
+  // Enforce the plan's vendor limit on insert. The UI pre-checks this
+  // before the form even opens (see AddVendorDialog); this is the
+  // safety net for a race (e.g. two tabs adding at once).
   const plan = planConfig(org.plan);
   if (plan.vendorLimit !== null) {
     const { count } = await db
@@ -80,19 +82,10 @@ export async function createVendor(
       .select("id", { count: "exact", head: true })
       .eq("org_id", org.id);
     if ((count ?? 0) >= plan.vendorLimit) {
-      if (org.plan === "free") {
-        return {
-          ok: false,
-          error: "first_upgrade",
-          isFirstUpgrade: true,
-          upgradePlans: PAID_PLANS,
-        };
-      }
-      const upgrade = nextPlan(org.plan as Parameters<typeof nextPlan>[0]);
       return {
         ok: false,
-        error: `You've reached the ${plan.name} plan limit of ${plan.vendorLimit} vendors.`,
-        upgradePlan: upgrade ?? undefined,
+        error: `You've reached the ${plan.name} plan limit of ${plan.vendorLimit} contractors.`,
+        atLimit: true,
       };
     }
   }

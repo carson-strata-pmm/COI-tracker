@@ -11,7 +11,7 @@ import { requireActiveOrg } from "@/lib/guards";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  await requireActiveOrg();
+  const org = await requireActiveOrg();
   const [vendors, vendorTypes] = await Promise.all([
     getVendorsWithCerts(),
     getVendorTypeOptions(),
@@ -26,7 +26,13 @@ export default async function DashboardPage() {
             Compliance overview across all your contractors.
           </p>
         </div>
-        {vendors.length > 0 && <AddVendorDialog vendorTypes={vendorTypes} />}
+        {vendors.length > 0 && (
+          <AddVendorDialog
+            vendorTypes={vendorTypes}
+            plan={org.plan}
+            vendorCount={vendors.length}
+          />
+        )}
       </div>
 
       {!isDbConfigured() && <DbNotice />}
@@ -36,7 +42,13 @@ export default async function DashboardPage() {
           icon={Users}
           title="Add your first contractor"
           description="Start tracking certificates of insurance by adding a contractor or subcontractor."
-          action={<AddVendorDialog vendorTypes={vendorTypes} />}
+          action={
+            <AddVendorDialog
+              vendorTypes={vendorTypes}
+              plan={org.plan}
+              vendorCount={vendors.length}
+            />
+          }
         />
       ) : (
         <>

@@ -28,7 +28,13 @@ export default async function VendorsPage() {
             .
           </p>
         </div>
-        {vendors.length > 0 && <AddVendorDialog vendorTypes={vendorTypes} />}
+        {vendors.length > 0 && (
+          <AddVendorDialog
+            vendorTypes={vendorTypes}
+            plan={org.plan}
+            vendorCount={vendors.length}
+          />
+        )}
       </div>
 
       {!isDbConfigured() && <DbNotice />}
@@ -38,7 +44,13 @@ export default async function VendorsPage() {
           icon={Users}
           title="No contractors yet"
           description="Add a contractor or subcontractor to start tracking their certificate of insurance."
-          action={<AddVendorDialog vendorTypes={vendorTypes} />}
+          action={
+            <AddVendorDialog
+              vendorTypes={vendorTypes}
+              plan={org.plan}
+              vendorCount={vendors.length}
+            />
+          }
         />
       ) : (
         <VendorTable vendors={vendors} showAiColumn={true} />

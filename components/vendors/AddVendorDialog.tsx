@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { VendorFormFields } from "@/components/vendors/VendorFormFields";
 import { createVendor, type ActionResult } from "@/app/(app)/vendors/actions";
-import type { PlanConfig } from "@/lib/constants";
+import { isAtVendorLimit, upgradePromptCopy } from "@/lib/upgrade-copy";
+import { cn } from "@/lib/utils";
+import type { Plan } from "@/lib/constants";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -26,13 +28,8 @@ function SubmitButton() {
   );
 }
 
-function FirstUpgradePrompt({
-  upgradePlans,
-  onClose,
-}: {
-  upgradePlans: PlanConfig[];
-  onClose: () => void;
-}) {
+function UpgradePrompt({ plan, onClose }: { plan: Plan; onClose: () => void }) {
+  const { headline, subcopy, plans } = upgradePromptCopy(plan);
   const [checkingOut, setCheckingOut] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
@@ -57,23 +54,35 @@ function FirstUpgradePrompt({
   return (
     <div className="grid gap-4">
       <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm">
-        <p className="font-semibold text-green-800">Your first contractor is tracked!</p>
-        <p className="mt-1 text-green-700">
-          Ready to add more? Pick the plan that fits your business — no limits after that.
-        </p>
+        <p className="font-semibold text-green-800">{headline}</p>
+        <p className="mt-1 text-green-700">{subcopy}</p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        {upgradePlans.map((p) => (
-          <div key={p.id} className="flex flex-col rounded-lg border p-3">
+      <div
+        className={cn(
+          "grid gap-2",
+          plans.length === 1 ? "justify-items-center" : "sm:grid-cols-2"
+        )}
+      >
+        {plans.map((p) => (
+          <div
+            key={p.id}
+            className={cn(
+              "flex flex-col rounded-lg border p-3",
+              plans.length === 1 && "w-full max-w-xs"
+            )}
+          >
             <div className="flex items-baseline justify-between gap-1">
               <span className="font-semibold">{p.name}</span>
               <span className="text-sm font-medium">
-                ${p.priceYearly}<span className="text-muted-foreground">/yr</span>
+                ${p.priceYearly}
+                <span className="text-muted-foreground">/yr</span>
               </span>
             </div>
             <p className="mt-1 flex-1 text-xs text-muted-foreground">
-              {p.vendorLimit === null ? "No contractor limit" : `Up to ${p.vendorLimit} contractors`}
+              {p.vendorLimit === null
+                ? "Unlimited contractors"
+                : `Up to ${p.vendorLimit} contractors`}
             </p>
             <Button
               size="sm"
@@ -97,68 +106,9 @@ function FirstUpgradePrompt({
         <p className="text-sm text-destructive">{checkoutError}</p>
       )}
 
-      <DialogFooter>
+      <DialogFooter className="sm:justify-end">
         <Button variant="outline" onClick={onClose} disabled={checkingOut !== null}>
           Maybe later
-        </Button>
-      </DialogFooter>
-    </div>
-  );
-}
-
-function UpgradePrompt({
-  currentError,
-  upgradePlan,
-  onClose,
-}: {
-  currentError: string;
-  upgradePlan: PlanConfig;
-  onClose: () => void;
-}) {
-  const [pending, setPending] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-
-  async function upgrade() {
-    setPending(true);
-    setCheckoutError(null);
-    try {
-      const res = await fetch("/api/stripe/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: upgradePlan.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Checkout unavailable");
-      if (data.url) window.location.href = data.url;
-    } catch (e) {
-      setCheckoutError(e instanceof Error ? e.message : "Checkout unavailable");
-      setPending(false);
-    }
-  }
-
-  return (
-    <div className="grid gap-4">
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
-        <p className="font-medium text-amber-900">{currentError}</p>
-        <p className="mt-1 text-amber-800">
-          Upgrade to <strong>{upgradePlan.name}</strong> (${upgradePlan.priceYearly}/yr) to track{" "}
-          {upgradePlan.vendorLimit === null
-            ? "unlimited contractors"
-            : `up to ${upgradePlan.vendorLimit} contractors`}
-          .
-        </p>
-      </div>
-      {checkoutError && (
-        <p className="text-sm text-destructive">{checkoutError}</p>
-      )}
-      <DialogFooter className="gap-2">
-        <Button variant="outline" onClick={onClose} disabled={pending}>
-          Cancel
-        </Button>
-        <Button onClick={upgrade} disabled={pending}>
-          {pending ? "Redirecting…" : (
-            <>Upgrade to {upgradePlan.name} <ArrowRight className="ml-1.5 h-4 w-4" /></>
-          )}
         </Button>
       </DialogFooter>
     </div>
@@ -180,10 +130,9 @@ function SuccessStep({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const sentVia = [
-    state.emailed && "email",
-    state.texted && "text",
-  ].filter(Boolean);
+  const sentVia = [state.emailed && "email", state.texted && "text"].filter(
+    Boolean
+  );
 
   return (
     <div className="grid gap-4">
@@ -235,28 +184,38 @@ function SuccessStep({
 export function AddVendorDialog({
   triggerVariant = "default",
   vendorTypes,
+  plan,
+  vendorCount,
 }: {
   triggerVariant?: "default" | "outline";
   vendorTypes: string[];
+  plan: Plan;
+  vendorCount: number;
 }) {
   const [open, setOpen] = useState(false);
+  // Decided the moment the dialog opens (or when a race-condition save
+  // hits the limit — see the effect below), not on submit: never open
+  // the form if the user can't save the result.
+  const [mode, setMode] = useState<"form" | "upgrade">("form");
   const [state, formAction] = useFormState<ActionResult | null, FormData>(
     createVendor,
     null
   );
 
   function handleOpenChange(next: boolean) {
+    if (next) {
+      setMode(isAtVendorLimit(plan, vendorCount) ? "upgrade" : "form");
+    }
     setOpen(next);
   }
 
   useEffect(() => {
-    if (!open) {
-      // Reset handled by re-mounting the form via key; nothing needed here.
+    if (state && !state.ok && state.atLimit) {
+      setMode("upgrade");
     }
-  }, [open]);
+  }, [state]);
 
-  const isFirstUpgrade = state && !state.ok && state.isFirstUpgrade && state.upgradePlans;
-  const isPaidUpgrade = state && !state.ok && !state.isFirstUpgrade && state.upgradePlan;
+  const success = state?.ok && state.uploadUrl;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -268,9 +227,11 @@ export function AddVendorDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isFirstUpgrade ? "Nice — your first contractor is tracked!" : "Add a contractor"}
+            {mode === "upgrade" && !success
+              ? upgradePromptCopy(plan).headline
+              : "Add a contractor"}
           </DialogTitle>
-          {!isFirstUpgrade && (
+          {mode === "form" && !success && (
             <DialogDescription>
               Add a contractor or subcontractor to track their certificate of
               insurance. We&apos;ll automatically send them an upload link.
@@ -278,26 +239,17 @@ export function AddVendorDialog({
           )}
         </DialogHeader>
 
-        {state?.ok && state.uploadUrl ? (
+        {success ? (
           <SuccessStep
             state={state as Extract<ActionResult, { ok: true }> & { uploadUrl: string }}
             onClose={() => setOpen(false)}
           />
-        ) : isFirstUpgrade ? (
-          <FirstUpgradePrompt
-            upgradePlans={(state as Extract<ActionResult, { ok: false }> & { upgradePlans: import("@/lib/constants").PlanConfig[] }).upgradePlans}
-            onClose={() => setOpen(false)}
-          />
-        ) : isPaidUpgrade ? (
-          <UpgradePrompt
-            currentError={(state as Extract<ActionResult, { ok: false }>).error}
-            upgradePlan={(state as Extract<ActionResult, { ok: false }> & { upgradePlan: import("@/lib/constants").PlanConfig }).upgradePlan!}
-            onClose={() => setOpen(false)}
-          />
+        ) : mode === "upgrade" ? (
+          <UpgradePrompt plan={plan} onClose={() => setOpen(false)} />
         ) : (
           <form action={formAction} className="grid gap-4">
             <VendorFormFields vendorTypes={vendorTypes} />
-            {state && !state.ok && !isFirstUpgrade && !isPaidUpgrade && (
+            {state && !state.ok && (
               <p className="text-sm text-destructive">{state.error}</p>
             )}
             <DialogFooter>
