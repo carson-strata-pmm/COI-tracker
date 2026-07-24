@@ -387,3 +387,86 @@ export async function notifyVendor(
 
   return { ok: true, emailed: sentVia.includes("email"), texted: sentVia.includes("sms"), sentTo: v.contact_email };
 }
+
+// ─────────────────────────────────────────────────────────────
+// Bulk vendor import (CSV)
+// ─────────────────────────────────────────────────────────────
+
+export interface BulkVendorRow {
+  company_name: string;
+  vendor_type: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+}
+
+export type BulkAddResult =
+  | { ok: true; inserted: number; skipped: number }
+  | { ok: false; error: string };
+
+/**
+ * Bulk-inserts pre-validated CSV rows in a single insert. The org is
+ * always resolved from the authenticated session, never a client-
+ * supplied id, so a caller can't write vendors into another org.
+ * Re-checks the plan limit server-side (client validation isn't
+ * trusted) — if the batch would exceed it, only the rows that fit are
+ * inserted and the rest are reported as skipped.
+ */
+export async function bulkAddVendors(
+  rows: BulkVendorRow[]
+): Promise<BulkAddResult> {
+  if (!isDbConfigured()) {
+    return {
+      ok: false,
+      error: "Database not connected. Set Supabase credentials to enable imports.",
+    };
+  }
+  if (rows.length === 0) {
+    return { ok: false, error: "No rows to import." };
+  }
+
+  const org = await getActiveOrg();
+  if (!org) return { ok: false, error: "No active organization." };
+
+  const db = createAdminClient();
+
+  const plan = planConfig(org.plan);
+  let toInsert = rows;
+  let skipped = 0;
+  if (plan.vendorLimit !== null) {
+    const { count } = await db
+      .from("vendors")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", org.id);
+    const availableSlots = Math.max(0, plan.vendorLimit - (count ?? 0));
+    if (rows.length > availableSlots) {
+      toInsert = rows.slice(0, availableSlots);
+      skipped = rows.length - toInsert.length;
+    }
+  }
+
+  if (toInsert.length === 0) {
+    return {
+      ok: false,
+      error: `Your ${plan.name} plan is already at its ${plan.vendorLimit}-contractor limit.`,
+    };
+  }
+
+  const { error } = await db.from("vendors").insert(
+    toInsert.map((r) => ({
+      org_id: org.id,
+      company_name: r.company_name,
+      vendor_type: r.vendor_type,
+      contact_name: r.contact_name,
+      contact_email: r.contact_email,
+      contact_phone: r.contact_phone,
+      status: "missing",
+    }))
+  );
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/vendors");
+
+  return { ok: true, inserted: toInsert.length, skipped };
+}

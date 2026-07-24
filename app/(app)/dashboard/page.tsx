@@ -2,6 +2,7 @@ import { Users } from "lucide-react";
 import { ComplianceSummary } from "@/components/dashboard/ComplianceSummary";
 import { VendorTable } from "@/components/dashboard/VendorTable";
 import { AddVendorDialog } from "@/components/vendors/AddVendorDialog";
+import { BulkUploadDialog } from "@/components/vendors/BulkUploadDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { DbNotice } from "@/components/DbNotice";
 import { getVendorsWithCerts, getVendorTypeOptions, isDbConfigured } from "@/lib/queries";
@@ -27,11 +28,19 @@ export default async function DashboardPage() {
           </p>
         </div>
         {vendors.length > 0 && (
-          <AddVendorDialog
-            vendorTypes={vendorTypes}
-            plan={org.plan}
-            vendorCount={vendors.length}
-          />
+          <div className="flex items-center gap-2">
+            <AddVendorDialog
+              vendorTypes={vendorTypes}
+              plan={org.plan}
+              vendorCount={vendors.length}
+            />
+            <BulkUploadDialog
+              vendorTypes={vendorTypes}
+              plan={org.plan}
+              vendorCount={vendors.length}
+              existingVendorNames={vendors.map((v) => v.company_name)}
+            />
+          </div>
         )}
       </div>
 
