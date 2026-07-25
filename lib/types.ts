@@ -1,4 +1,4 @@
-import type { Plan, VendorStatus } from "@/lib/constants";
+import type { BillingPeriod, Plan, VendorStatus } from "@/lib/constants";
 import type { FormattedCheck } from "@/lib/ai-review-format";
 
 export interface Organization {
@@ -6,6 +6,7 @@ export interface Organization {
   name: string;
   industry_type: string | null;
   plan: Plan;
+  billing_period: BillingPeriod;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   created_at: string;

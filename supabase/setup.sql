@@ -482,3 +482,11 @@ create policy "org members manage their vendor notifications"
 -- ─────────────────────────────────────────────────────────────
 
 alter table vendors add column if not exists vendor_type_notes text;
+
+-- ─────────────────────────────────────────────────────────────
+-- Migration 0011 — Monthly + annual billing
+-- ─────────────────────────────────────────────────────────────
+
+alter table organizations
+  add column if not exists billing_period text default 'monthly'
+  check (billing_period in ('monthly', 'annual'));

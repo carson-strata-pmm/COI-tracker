@@ -21,6 +21,7 @@ export const FIXTURE_ORG = {
   name: "Acme General Contracting",
   industry_type: "general_contractor",
   plan: "unlimited" as const,
+  billing_period: "monthly" as const,
   stripe_customer_id: null,
   stripe_subscription_id: null,
   created_at: isoDaysFromNow(-200),

@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStripe, hasStripe, priceIdForPlan } from "@/lib/stripe";
+import { getStripe, hasStripe, priceIdFor } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { isDbConfigured } from "@/lib/queries";
-import { type Plan } from "@/lib/constants";
+import { type Plan, type BillingPeriod } from "@/lib/constants";
 import { getActiveOrgId } from "@/lib/auth";
 import type { Organization } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 /**
- * Create a Stripe Checkout session for upgrading to Pro or Pro+.
- * (Phase 9.)
+ * Create a Stripe Checkout session for upgrading to a paid plan, at
+ * the requested billing period. Unlimited has no self-serve checkout
+ * (contact-only), so it's deliberately excluded from upgradablePlans.
  */
 export async function POST(req: NextRequest) {
   if (!hasStripe()) {
@@ -22,14 +23,18 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const plan = body.plan as Plan | undefined;
-  const upgradablePlans: Plan[] = ["solo", "crew", "outfit", "unlimited"];
+  const billingPeriod = (body.billingPeriod as BillingPeriod | undefined) ?? "monthly";
+  const upgradablePlans: Plan[] = ["solo", "crew", "outfit"];
   if (!plan || !upgradablePlans.includes(plan)) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
-  const priceId = priceIdForPlan(plan);
+  if (billingPeriod !== "monthly" && billingPeriod !== "annual") {
+    return NextResponse.json({ error: "Invalid billing period" }, { status: 400 });
+  }
+  const priceId = priceIdFor(plan, billingPeriod);
   if (!priceId) {
     return NextResponse.json(
-      { error: `No Stripe price configured for ${plan}` },
+      { error: `No Stripe price configured for ${plan} (${billingPeriod})` },
       { status: 500 }
     );
   }

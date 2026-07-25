@@ -11,12 +11,24 @@ import { DbNotice } from "@/components/DbNotice";
 import { isDbConfigured } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
 import { planConfig } from "@/lib/constants";
+import { getStripe, hasStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
+
+async function getRenewalDate(subscriptionId: string | null): Promise<string | null> {
+  if (!subscriptionId || !hasStripe()) return null;
+  try {
+    const sub = await getStripe().subscriptions.retrieve(subscriptionId);
+    return new Date(sub.current_period_end * 1000).toISOString();
+  } catch {
+    return null;
+  }
+}
 
 export default async function SettingsPage() {
   const org = await requireActiveOrg();
   const plan = planConfig(org.plan);
+  const renewalDate = await getRenewalDate(org.stripe_subscription_id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -50,7 +62,11 @@ export default async function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <BillingControls currentPlan={org.plan} />
+          <BillingControls
+            currentPlan={org.plan}
+            currentBillingPeriod={org.billing_period}
+            renewalDate={renewalDate}
+          />
         </CardContent>
       </Card>
     </div>

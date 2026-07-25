@@ -4,14 +4,32 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PLANS, PLAN_ORDER, type Plan } from "@/lib/constants";
+import { cn } from "@/lib/utils";
+import {
+  CONTACT_SALES_URL,
+  PAID_PLANS,
+  PLAN_ORDER,
+  planConfig,
+  priceForPeriod,
+  type BillingPeriod,
+  type Plan,
+} from "@/lib/constants";
 
-export function BillingControls({ currentPlan }: { currentPlan: Plan }) {
+export function BillingControls({
+  currentPlan,
+  currentBillingPeriod,
+  renewalDate,
+}: {
+  currentPlan: Plan;
+  currentBillingPeriod: BillingPeriod;
+  renewalDate: string | null;
+}) {
   // Tracks which single plan's button is mid-checkout, so only that
   // button shows a pending state instead of dimming every button.
   const [checkingOut, setCheckingOut] = useState<Plan | null>(null);
   const [portalPending, setPortalPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<BillingPeriod>("monthly");
 
   async function checkout(plan: Plan) {
     if (checkingOut) return;
@@ -21,7 +39,7 @@ export function BillingControls({ currentPlan }: { currentPlan: Plan }) {
       const res = await fetch("/api/stripe/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, billingPeriod: period }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Checkout unavailable");
@@ -56,18 +74,67 @@ export function BillingControls({ currentPlan }: { currentPlan: Plan }) {
   }
 
   const currentIdx = PLAN_ORDER.indexOf(currentPlan);
+  const current = planConfig(currentPlan);
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+        <p>
+          You&apos;re on the <span className="font-medium">{current.name}</span> plan
+          {current.pricing && (
+            <>
+              , billed <span className="font-medium">{currentBillingPeriod}</span>
+            </>
+          )}
+          .
+        </p>
+        {renewalDate && (
+          <p className="mt-1 text-muted-foreground">
+            Renews on{" "}
+            {new Date(renewalDate).toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+            .
+          </p>
+        )}
+      </div>
+
+      <div className="flex justify-center">
+        <div className="inline-flex rounded-lg border p-1 text-sm">
+          <button
+            type="button"
+            onClick={() => setPeriod("monthly")}
+            className={cn(
+              "rounded-md px-3 py-1 transition-colors",
+              period === "monthly" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            )}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setPeriod("annual")}
+            className={cn(
+              "rounded-md px-3 py-1 transition-colors",
+              period === "annual" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            )}
+          >
+            Annual — save 2 months
+          </button>
+        </div>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {PLAN_ORDER.map((id) => {
-          const p = PLANS[id];
-          const isCurrent = id === currentPlan;
-          const isUpgrade = PLAN_ORDER.indexOf(id) > currentIdx;
+        {PAID_PLANS.map((p) => {
+          const isCurrent = p.id === currentPlan;
+          const isUpgrade = PLAN_ORDER.indexOf(p.id) > currentIdx;
+          const price = priceForPeriod(p.id, period);
 
           return (
             <div
-              key={id}
+              key={p.id}
               className={`flex flex-col rounded-lg border p-4 ${
                 isCurrent ? "border-primary ring-1 ring-primary" : ""
               }`}
@@ -77,15 +144,13 @@ export function BillingControls({ currentPlan }: { currentPlan: Plan }) {
                 {isCurrent && <Badge>Current</Badge>}
               </div>
               <div className="mt-1 text-2xl font-semibold">
-                ${p.priceYearly}
+                ${price}
                 <span className="text-sm font-normal text-muted-foreground">
-                  /yr
+                  /{period === "monthly" ? "mo" : "yr"}
                 </span>
               </div>
               <p className="mt-2 flex-1 text-xs text-muted-foreground">
-                {p.vendorLimit === null
-                  ? "Unlimited contractors"
-                  : `Up to ${p.vendorLimit} contractors`}
+                Up to {p.vendorLimit} contractors
               </p>
               <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                 <li className="flex items-center gap-1.5">
@@ -106,6 +171,28 @@ export function BillingControls({ currentPlan }: { currentPlan: Plan }) {
             </div>
           );
         })}
+
+        <div className="flex flex-col rounded-lg border p-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">Unlimited</span>
+            {currentPlan === "unlimited" && <Badge>Current</Badge>}
+          </div>
+          <div className="mt-1 text-2xl font-semibold text-muted-foreground">
+            Contact us
+          </div>
+          <p className="mt-2 flex-1 text-xs text-muted-foreground">
+            No contractor limit
+          </p>
+          <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+            <li className="flex items-center gap-1.5">
+              <Check className="h-3 w-3 text-green-600 shrink-0" />
+              AI compliance review
+            </li>
+          </ul>
+          <Button size="sm" variant="outline" className="mt-3" asChild>
+            <a href={CONTACT_SALES_URL}>Get in touch →</a>
+          </Button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

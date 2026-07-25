@@ -1,65 +1,97 @@
 // ─────────────────────────────────────────────────────────────
-// Plans — annual billing, 5 tiers, AI review on all plans
+// Plans — monthly + annual billing, AI review on all plans.
+// Unlimited is contact-only (no Stripe price, no self-serve
+// checkout) — existing orgs on it are left alone, but it's excluded
+// from PAID_PLANS and never returned by webhook price resolution.
 // ─────────────────────────────────────────────────────────────
 export type Plan = "free" | "solo" | "crew" | "outfit" | "unlimited";
+export type BillingPeriod = "monthly" | "annual";
+
+export interface PlanPricing {
+  monthly: number;
+  annual: number;
+  monthlyPriceIdEnv: string;
+  annualPriceIdEnv: string;
+}
 
 export interface PlanConfig {
   id: Plan;
   name: string;
-  priceYearly: number;
   vendorLimit: number | null; // null = unlimited
-  priceIdEnv: string; // env var holding the Stripe price id (empty for free)
+  /** null = no self-serve checkout (Free is always free; Unlimited is contact-only). */
+  pricing: PlanPricing | null;
 }
 
 export const PLANS: Record<Plan, PlanConfig> = {
   free: {
     id: "free",
     name: "Free",
-    priceYearly: 0,
     vendorLimit: 1,
-    priceIdEnv: "",
+    pricing: null,
   },
   solo: {
     id: "solo",
     name: "Solo",
-    priceYearly: 20,
     vendorLimit: 10,
-    priceIdEnv: "STRIPE_SOLO_PRICE_ID",
+    pricing: {
+      monthly: 10,
+      annual: 100,
+      monthlyPriceIdEnv: "STRIPE_SOLO_MONTHLY_PRICE_ID",
+      annualPriceIdEnv: "STRIPE_SOLO_ANNUAL_PRICE_ID",
+    },
   },
   crew: {
     id: "crew",
     name: "Crew",
-    priceYearly: 100,
     vendorLimit: 30,
-    priceIdEnv: "STRIPE_CREW_PRICE_ID",
+    pricing: {
+      monthly: 20,
+      annual: 200,
+      monthlyPriceIdEnv: "STRIPE_CREW_MONTHLY_PRICE_ID",
+      annualPriceIdEnv: "STRIPE_CREW_ANNUAL_PRICE_ID",
+    },
   },
   outfit: {
     id: "outfit",
     name: "Outfit",
-    priceYearly: 200,
     vendorLimit: 50,
-    priceIdEnv: "STRIPE_OUTFIT_PRICE_ID",
+    pricing: {
+      monthly: 30,
+      annual: 300,
+      monthlyPriceIdEnv: "STRIPE_OUTFIT_MONTHLY_PRICE_ID",
+      annualPriceIdEnv: "STRIPE_OUTFIT_ANNUAL_PRICE_ID",
+    },
   },
   unlimited: {
     id: "unlimited",
     name: "Unlimited",
-    priceYearly: 500,
     vendorLimit: null,
-    priceIdEnv: "STRIPE_UNLIMITED_PRICE_ID",
+    pricing: null,
   },
 };
 
 export const PLAN_ORDER: Plan[] = ["free", "solo", "crew", "outfit", "unlimited"];
 
-export const PAID_PLANS: PlanConfig[] = [
-  PLANS.solo,
-  PLANS.crew,
-  PLANS.outfit,
-  PLANS.unlimited,
-];
+// Self-serve (Stripe checkout) plans only. Free never checks out and
+// Unlimited is contact-only — see CONTACT_SALES_URL.
+export const PAID_PLANS: PlanConfig[] = [PLANS.solo, PLANS.crew, PLANS.outfit];
+
+export const CONTACT_SALES_URL = "mailto:hello@getcerttrack.com";
 
 export function planConfig(plan: string | null | undefined): PlanConfig {
   return PLANS[(plan as Plan) ?? "free"] ?? PLANS.free;
+}
+
+/** Price in whole dollars for a plan + billing period, or null if not self-serve. */
+export function priceForPeriod(plan: Plan, period: BillingPeriod): number | null {
+  return PLANS[plan].pricing?.[period] ?? null;
+}
+
+/** Env var name holding the Stripe price id for a plan + period, or null if not self-serve. */
+export function priceIdEnvFor(plan: Plan, period: BillingPeriod): string | null {
+  const pricing = PLANS[plan].pricing;
+  if (!pricing) return null;
+  return period === "monthly" ? pricing.monthlyPriceIdEnv : pricing.annualPriceIdEnv;
 }
 
 // ─────────────────────────────────────────────────────────────

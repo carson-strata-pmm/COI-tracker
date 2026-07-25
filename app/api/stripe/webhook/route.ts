@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { getStripe, hasStripe, planForPriceId } from "@/lib/stripe";
+import { getStripe, hasStripe, resolvePriceId } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { hasAdminCredentials } from "@/lib/supabase-admin";
 
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       if (orgId) {
         await db
           .from("organizations")
-          .update({ plan: "free", stripe_subscription_id: null })
+          .update({ plan: "free", billing_period: "monthly", stripe_subscription_id: null })
           .eq("id", orgId);
       }
       break;
@@ -95,11 +95,13 @@ async function syncSubscription(
   customerId: string
 ): Promise<void> {
   const priceId = sub.items.data[0]?.price.id;
-  const plan = planForPriceId(priceId);
+  const resolved = resolvePriceId(priceId);
+  const isActive = sub.status === "active" || sub.status === "trialing";
   await db
     .from("organizations")
     .update({
-      plan: sub.status === "active" || sub.status === "trialing" ? plan : "free",
+      plan: isActive && resolved ? resolved.plan : "free",
+      billing_period: isActive && resolved ? resolved.billingPeriod : "monthly",
       stripe_customer_id: customerId,
       stripe_subscription_id: sub.id,
     })
