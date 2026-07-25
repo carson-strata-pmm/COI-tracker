@@ -94,6 +94,16 @@ export function priceIdEnvFor(plan: Plan, period: BillingPeriod): string | null 
   return period === "monthly" ? pricing.monthlyPriceIdEnv : pricing.annualPriceIdEnv;
 }
 
+/** True for plan values with a self-serve Stripe checkout (solo/crew/outfit) — narrows an untrusted string. */
+export function isSelfServePlan(value: string | null | undefined): value is Plan {
+  return PAID_PLANS.some((p) => p.id === value);
+}
+
+/** Narrows an untrusted string to a valid BillingPeriod. */
+export function isBillingPeriod(value: string | null | undefined): value is BillingPeriod {
+  return value === "monthly" || value === "annual";
+}
+
 // ─────────────────────────────────────────────────────────────
 // Vendor status
 // ─────────────────────────────────────────────────────────────

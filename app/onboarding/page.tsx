@@ -9,16 +9,25 @@ import {
 } from "@/components/ui/card";
 import { OnboardingForm } from "@/components/auth/OnboardingForm";
 import { getAuthUser, getActiveOrgId } from "@/lib/auth";
+import { isBillingPeriod, isSelfServePlan } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: { plan?: string; billing?: string };
+}) {
   const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
-  // Already onboarded — go straight to the dashboard.
+  const plan = isSelfServePlan(searchParams.plan) ? searchParams.plan : null;
+  const billing = isBillingPeriod(searchParams.billing) ? searchParams.billing : "monthly";
+
+  // Already onboarded — go straight to checkout if a plan was intended,
+  // otherwise the dashboard.
   const orgId = await getActiveOrgId();
-  if (orgId) redirect("/dashboard");
+  if (orgId) redirect(plan ? `/checkout?plan=${plan}&billing=${billing}` : "/dashboard");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -36,7 +45,7 @@ export default async function OnboardingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <OnboardingForm />
+            <OnboardingForm plan={plan ?? undefined} billing={plan ? billing : undefined} />
           </CardContent>
         </Card>
       </div>

@@ -7,13 +7,35 @@ import { createClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { BillingPeriod, Plan } from "@/lib/constants";
 
 type Mode = "login" | "signup";
 
-export function AuthForm({ mode }: { mode: Mode }) {
+export function AuthForm({
+  mode,
+  plan,
+  billing,
+}: {
+  mode: Mode;
+  /** Only meaningful for mode="signup" — carries an intended paid plan through email confirmation. */
+  plan?: Plan;
+  billing?: BillingPeriod;
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
+  // Carries the intended plan across the email-confirmation redirect
+  // when it happens in the same tab; the onboarding/checkout redirect
+  // is also driven by plan/billing baked into the confirmation link's
+  // `next` query param, so cross-tab and cross-device confirmation
+  // still lands on checkout correctly even when sessionStorage doesn't
+  // survive.
+  function rememberIntendedPlan() {
+    if (mode === "signup" && plan && billing && typeof window !== "undefined") {
+      sessionStorage.setItem("intended_plan", plan);
+      sessionStorage.setItem("intended_billing", billing);
+    }
+  }
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,10 +55,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       const supabase = createClient();
       if (mode === "signup") {
+        rememberIntendedPlan();
         const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, plan, billing }),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Something went wrong");
@@ -68,10 +91,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
     }
     setLoading(true);
     try {
+      rememberIntendedPlan();
+      const magicLinkNext =
+        mode === "signup" && plan && billing
+          ? `/onboarding?plan=${plan}&billing=${billing}`
+          : next;
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: `${appUrl}/auth/callback?next=${next}` },
+        options: {
+          emailRedirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(magicLinkNext)}`,
+        },
       });
       if (error) throw error;
       setNotice("Check your email for a magic sign-in link.");

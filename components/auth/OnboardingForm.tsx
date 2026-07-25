@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createOrg, type ActionResult } from "@/app/onboarding/actions";
-import { INDUSTRY_TYPES } from "@/lib/constants";
+import { INDUSTRY_TYPES, type BillingPeriod, type Plan } from "@/lib/constants";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -25,7 +25,14 @@ function SubmitButton() {
   );
 }
 
-export function OnboardingForm() {
+export function OnboardingForm({
+  plan,
+  billing,
+}: {
+  /** An intended paid plan carried from signup, if any — takes the user to checkout instead of the dashboard. */
+  plan?: Plan;
+  billing?: BillingPeriod;
+}) {
   const router = useRouter();
   const [state, formAction] = useFormState<ActionResult | null, FormData>(
     createOrg,
@@ -34,10 +41,23 @@ export function OnboardingForm() {
 
   useEffect(() => {
     if (state?.ok) {
-      router.push("/dashboard");
+      // The org didn't exist yet when signup ran, so it couldn't check
+      // out then — this is the first point an org id exists. Prefer
+      // the plan carried via URL (survives cross-tab/cross-device
+      // email confirmation); sessionStorage is a same-tab fallback.
+      const intendedPlan = plan ?? sessionStorage.getItem("intended_plan");
+      const intendedBilling = billing ?? sessionStorage.getItem("intended_billing");
+      sessionStorage.removeItem("intended_plan");
+      sessionStorage.removeItem("intended_billing");
+
+      if (intendedPlan && intendedBilling) {
+        router.push(`/checkout?plan=${intendedPlan}&billing=${intendedBilling}`);
+      } else {
+        router.push("/dashboard");
+      }
       router.refresh();
     }
-  }, [state, router]);
+  }, [state, router, plan, billing]);
 
   return (
     <form action={formAction} className="grid gap-4">

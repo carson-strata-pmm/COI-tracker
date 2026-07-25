@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { sendConfirmationEmail } from "@/lib/emails/sendConfirmationEmail";
+import { isBillingPeriod, isSelfServePlan } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json();
+  const { email, password, plan, billing } = await req.json();
 
   if (!email || !password) {
     return NextResponse.json(
@@ -45,8 +46,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Carries an intended paid plan through to onboarding (and from there
+  // to /checkout) as a query param on the confirmation link itself,
+  // rather than only sessionStorage — the link is often opened in a
+  // new tab or a different device, where sessionStorage is empty.
+  const nextPath =
+    isSelfServePlan(plan) && isBillingPeriod(billing)
+      ? `/onboarding?plan=${plan}&billing=${billing}`
+      : "/onboarding";
+
   const confirmationUrl = `${appUrl}/auth/confirm?token_hash=${tokenHash}&type=signup&next=${encodeURIComponent(
-    "/onboarding"
+    nextPath
   )}`;
 
   try {

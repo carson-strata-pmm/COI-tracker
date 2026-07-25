@@ -1,12 +1,15 @@
+import { Suspense } from "react";
 import { Users } from "lucide-react";
 import { ComplianceSummary } from "@/components/dashboard/ComplianceSummary";
 import { VendorTable } from "@/components/dashboard/VendorTable";
+import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
 import { AddVendorDialog } from "@/components/vendors/AddVendorDialog";
 import { BulkUploadDialog } from "@/components/vendors/BulkUploadDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { DbNotice } from "@/components/DbNotice";
 import { getVendorsWithCerts, getVendorTypeOptions, isDbConfigured } from "@/lib/queries";
 import { requireActiveOrg } from "@/lib/guards";
+import { planConfig } from "@/lib/constants";
 
 // DB-backed; never freeze fixture/seed data at build time.
 export const dynamic = "force-dynamic";
@@ -20,6 +23,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <Suspense>
+        <WelcomeBanner planName={planConfig(org.plan).name} />
+      </Suspense>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
